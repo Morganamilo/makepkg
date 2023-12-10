@@ -1,0 +1,51 @@
+post_install() {
+    :
+#!/bin/bash
+# Program:
+#	script to be run after package installation
+
+echo "run post install script, action is $1..."
+
+update-mime-database /usr/share/mime || true
+#update-desktop-database || true
+if [ -x "/usr/bin/update-desktop-database" ]; then 
+	update-desktop-database || true
+else
+    echo "/usr/bin/update-desktop-database command is missing! apt install desktop-file-utils and run this command again."
+fi
+#add chrome-sandbox setuid access  
+if [ -e "/opt/zoom/cef/chrome-sandbox" ]; then 
+	chown root /opt/zoom/cef/chrome-sandbox && chmod 4755 /opt/zoom/cef/chrome-sandbox || true
+fi
+
+
+}
+post_upgrade() {
+    :
+#!/bin/bash
+# Program:
+#	script to be run after package upgrade
+
+echo "run post upgrade script, action is $1..."
+
+#add chrome-sandbox setuid access  
+if [ -e "/opt/zoom/cef/chrome-sandbox" ]; then 
+	chown root /opt/zoom/cef/chrome-sandbox && chmod 4755 /opt/zoom/cef/chrome-sandbox || true
+fi
+
+}
+post_remove() {
+    :
+#!/bin/bash
+# Program:
+#	script to be run after package removal
+
+echo "run post uninstall script, action is $1 ..."
+
+[ "$1" = "remove" ] || [ "$1" = "purge" ] || exit 0
+
+if [ -L "/usr/bin/zoom" ]; then 
+	rm /usr/bin/zoom 
+fi 
+
+}
