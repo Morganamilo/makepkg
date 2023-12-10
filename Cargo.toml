@@ -1,0 +1,21 @@
+[package]
+name = "pkgbuild"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+curl = { version = "0.4.44", features = ["protocol-ftp", "http2"] }
+dirs = "5.0.1"
+nix = { version = "0.27.1", features = ["fs", "user", "signal"] }
+gpgme = "0.11.0"
+
+hex = "0.4.3"
+digest = { version = "0.10.7", features = ["std"] }
+md-5 = "0.10.6"
+sha1 = "0.10.6"
+sha2 = "0.10.8"
+blake2 = "0.10.6"
+walkdir = "2.4.0"
+
+[dev-dependencies]
+ansi_term = "0.12.1"
