@@ -12,7 +12,7 @@ use sha2::{Sha224, Sha256, Sha512};
 use crate::callback::{Event, LogLevel, LogMessage, SigFailed, SigFailedKind};
 use crate::config::PkgbuildDirs;
 use crate::error::{
-    CommandError, Context, Error, IOContext, IOErrorExt, IntegError, Result, RunErrorKind,
+    CommandError, Context, Error, IOContext, IOErrorExt, IntegError, Result, CommandErrorKind,
 };
 use crate::fs::open;
 use crate::options::Options;
@@ -47,7 +47,7 @@ impl Makepkg {
         if pkgbuild.has_function(Function::Verify) {
             let err = self.run_function(options, pkgbuild, Function::Verify);
             if let Err(Error::Command(CommandError {
-                kind: RunErrorKind::ExitCode(_),
+                kind: CommandErrorKind::ExitCode(_),
                 ..
             })) = err
             {

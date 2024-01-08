@@ -333,37 +333,20 @@ impl IOError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum RunAction {
-    SourcePkgbuild,
-    SourceConfig,
-    RunFunction(String),
-}
-
-impl Display for RunAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RunAction::SourcePkgbuild => f.write_str("source PKGBUILD"),
-            RunAction::SourceConfig => f.write_str("source config file"),
-            RunAction::RunFunction(func) => write!(f, "run '{func}()'"),
-        }
-    }
-}
-
 #[derive(Debug)]
-pub enum RunErrorKind {
+pub enum CommandErrorKind {
     Command(io::Error),
     UTF8(FromUtf8Error),
     ExitCode(Option<i32>),
 }
 
-impl Display for RunErrorKind {
+impl Display for CommandErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RunErrorKind::Command(e) => e.fmt(f),
-            RunErrorKind::UTF8(_) => write!(f, "output was not valid unicode"),
-            RunErrorKind::ExitCode(Some(code)) => write!(f, "exited {}", code),
-            RunErrorKind::ExitCode(None) => write!(f, "\" killed by signal"),
+            CommandErrorKind::Command(e) => e.fmt(f),
+            CommandErrorKind::UTF8(_) => write!(f, "output was not valid unicode"),
+            CommandErrorKind::ExitCode(Some(code)) => write!(f, "exited {}", code),
+            CommandErrorKind::ExitCode(None) => write!(f, "\" killed by signal"),
         }
     }
 }
@@ -467,7 +450,7 @@ impl Display for LintError {
         if let Some(issue) = self.issues.get(0) {
             issue.fmt(f)?;
         }
-        for issue in &self.issues {
+        for issue in self.issues.iter().skip(1) {
             f.write_str("\n    ")?;
             issue.fmt(f)?;
         }
@@ -551,7 +534,7 @@ impl Display for IntegError {
 
 #[derive(Debug)]
 pub struct CommandError {
-    pub kind: RunErrorKind,
+    pub kind: CommandErrorKind,
     pub command: Vec<String>,
     pub context: Context,
 }
@@ -562,9 +545,9 @@ impl Display for CommandError {
             write!(f, "{}: ", self.context)?;
         }
         match &self.kind {
-            RunErrorKind::Command(_) => write!(f, "{} ({})", self.command[0], self.kind)?,
-            RunErrorKind::UTF8(_) => write!(f, "{}", self.kind)?,
-            RunErrorKind::ExitCode(_) => write!(f, "{} {}", self.command[0], self.kind)?,
+            CommandErrorKind::Command(_) => write!(f, "{} ({})", self.command[0], self.kind)?,
+            CommandErrorKind::UTF8(_) => write!(f, "{}: {}", self.command[0], self.kind)?,
+            CommandErrorKind::ExitCode(_) => write!(f, "{} {}", self.command[0], self.kind)?,
         }
 
         Ok(())
@@ -576,21 +559,21 @@ impl CommandError {
         CommandError {
             command: Self::command_to_string(command),
             context,
-            kind: RunErrorKind::Command(err),
+            kind: CommandErrorKind::Command(err),
         }
     }
     pub(crate) fn utf8(err: FromUtf8Error, command: &Command, context: Context) -> Self {
         CommandError {
             command: Self::command_to_string(command),
             context,
-            kind: RunErrorKind::UTF8(err),
+            kind: CommandErrorKind::UTF8(err),
         }
     }
     pub(crate) fn exit(command: &Command, code: Option<i32>, context: Context) -> Self {
         CommandError {
             command: Self::command_to_string(command),
             context,
-            kind: RunErrorKind::ExitCode(code),
+            kind: CommandErrorKind::ExitCode(code),
         }
     }
 
