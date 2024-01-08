@@ -10,9 +10,9 @@ use std::{
 use nix::sys::stat::{umask, Mode};
 
 use crate::{
-    error::{DownloadAgentError, Context, LintError, LintKind, Result, VCSClientError},
+    error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
     fs::{resolve_path, resolve_path_relative, Check},
-    pkgbuild::Pkgbuild,
+    pkgbuild::{Pkgbuild, Source},
     raw::RawConfig,
 };
 
@@ -81,6 +81,16 @@ pub struct PkgbuildDirs {
     pub pkgdest: PathBuf,
     pub srcdest: PathBuf,
     pub srcpkgdest: PathBuf,
+}
+
+impl PkgbuildDirs {
+    pub fn download_path(&self, source: &Source) -> PathBuf {
+        if source.is_download() {
+            self.srcdest.join(source.file_name())
+        } else {
+            self.startdir.join(source.file_name())
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -172,9 +182,7 @@ impl Config {
             Path::new("/etc/makepkg.conf").to_path_buf()
         };
 
-        Check::new(Context::ReadConfig)
-            .read()
-            .check(&main_config)?;
+        Check::new(Context::ReadConfig).read().check(&main_config)?;
 
         let main_config = resolve_path(main_config)?;
 

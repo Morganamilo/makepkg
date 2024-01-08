@@ -5,9 +5,7 @@ mod vcs;
 
 pub use vcs::*;
 
-use std::{
-    collections::BTreeMap, fs::remove_file, os::unix::fs::symlink, path::PathBuf, process::Command,
-};
+use std::{collections::BTreeMap, fs::remove_file, os::unix::fs::symlink, process::Command};
 
 use crate::{
     callback::Event,
@@ -92,7 +90,7 @@ impl Makepkg {
         source: &Source,
         noextract: &[String],
     ) -> Result<()> {
-        let srcdestfile = self.download_path(dirs, source);
+        let srcdestfile = dirs.download_path(source);
         let srcfile = dirs.srcdir.join(source.file_name());
         if srcfile.exists() {
             remove_file(&srcfile)
@@ -157,7 +155,7 @@ impl Makepkg {
         }
 
         for source in all_sources {
-            let path = self.download_path(dirs, source);
+            let path = dirs.download_path(source);
 
             if let Some(tool) = self.get_vcs_tool(&source) {
                 vcs_downloads.entry(tool).or_default().push(source);
@@ -182,13 +180,5 @@ impl Makepkg {
             .dl_agents
             .iter()
             .find(|a| a.protocol == download_proto)
-    }
-
-    pub fn download_path(&self, dirs: &PkgbuildDirs, source: &Source) -> PathBuf {
-        if source.is_download() {
-            dirs.srcdest.join(source.file_name())
-        } else {
-            dirs.startdir.join(source.file_name())
-        }
     }
 }

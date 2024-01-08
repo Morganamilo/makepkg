@@ -16,7 +16,7 @@ impl Makepkg {
         options: &Options,
         source: &Source,
     ) -> Result<()> {
-        let path = self.download_path(dirs, source);
+        let path = dirs.download_path(source);
 
         if !path.exists() || !path.join("objects").exists() {
             println!("    cloning {} git repo...", source.file_name());
@@ -44,7 +44,7 @@ impl Makepkg {
                 .arg("config")
                 .arg("--get")
                 .arg("remote.origin.url")
-                .current_dir(self.download_path(dirs, source));
+                .current_dir(dirs.download_path(source));
             let remote_url = command.output();
             let remote_url = remote_url.download_context(&source, &command, Context::None)?;
             let remote_url = String::from_utf8(remote_url.stdout)
@@ -64,7 +64,7 @@ impl Makepkg {
                 .arg("--all")
                 .arg("-p")
                 .env("GIT_TERMINAL_PROMPT", "0")
-                .current_dir(self.download_path(dirs, source));
+                .current_dir(dirs.download_path(source));
             command
                 .status()
                 .download_context(&source, &command, Context::None)?;

@@ -16,7 +16,7 @@ impl Makepkg {
     ) -> Result<()> {
         Ok(for (agent, sources) in downloads {
             for source in sources {
-                let final_path = self.download_path(&dirs, &source).display().to_string();
+                let final_path = dirs.download_path(&source).display().to_string();
                 let part = format!("{}.part", final_path);
                 let url = source.url.as_str();
                 let url = url.trim_start_matches("scp://");

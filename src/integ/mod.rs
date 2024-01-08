@@ -113,8 +113,8 @@ impl Makepkg {
                 .find(|s| s.file_name() == file)
                 .ok_or_else(|| IntegError::MissingFileForSig(source.file_name().to_string()))?;
 
-            let sig = self.download_path(dirs, &source);
-            let data = self.download_path(dirs, source_file);
+            let sig = dirs.download_path(&source);
+            let data = dirs.download_path(source_file);
             let sig = open(File::options().read(true), sig, Context::IntegrityCheck)?;
             let data = open(File::options().read(true), data, Context::IntegrityCheck)?;
 
@@ -378,7 +378,7 @@ impl Makepkg {
                     continue;
                 }
             }
-            let path = self.download_path(dirs, source);
+            let path = dirs.download_path(source);
 
             let hash = match source.protocol() {
                 //Some(proto) if is_vcs_proto(proto) => self.checksum_vcs::<D>(source)?,
@@ -398,7 +398,7 @@ impl Makepkg {
         name: &'static str,
         failed: &mut Vec<&'static str>,
     ) -> Result<()> {
-        let path = self.download_path(dirs, source);
+        let path = dirs.download_path(source);
 
         let sum = if let Some(sum) = sum {
             sum
