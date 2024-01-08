@@ -209,9 +209,9 @@ impl Config {
             Path::new("/etc/makepkg.conf").to_path_buf()
         };
 
-        Check::new(Context::ReadConfig).read().check(&main_config)?;
+        Check::new(Context::ReadConfig).file().check(&main_config)?;
 
-        let main_config = resolve_path(main_config)?;
+        let main_config = resolve_path(Context::ReadConfig, main_config)?;
 
         let mut configd = main_config.clone();
         configd.as_mut_os_string().push(".d");

@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::process::{Child, ExitStatus, Output};
 use std::{
     fmt::Display,
@@ -282,6 +283,7 @@ pub enum IOContext {
     Dup,
     InvalidPath(PathBuf),
     NotAFile(PathBuf),
+    NotADir(PathBuf),
     NotFound(PathBuf),
     Chmod(PathBuf),
 }
@@ -317,6 +319,7 @@ impl Display for IOContext {
             IOContext::Dup => write!(f, "unable to duplicate file description"),
             IOContext::InvalidPath(p) => write!(f, "invalid path \"{}\"", p.display()),
             IOContext::NotAFile(p) => write!(f, "{} is not a file", p.display()),
+            IOContext::NotADir(p) => write!(f, "{} is not a directory", p.display()),
             IOContext::NotFound(p) => write!(f, "{}: no such file or directory", p.display()),
             IOContext::Chmod(p) => write!(f, "can't change permissions on {}", p.display()),
         }
@@ -342,7 +345,10 @@ impl Display for IOError {
             write!(f, "{}", self.context)?;
         }
         write!(f, ": {}", self.iocontext)?;
-        write!(f, ": {}", self.err)?;
+
+        if self.err.kind() != ErrorKind::Other {
+            write!(f, ": {}", self.err)?;
+        }
         Ok(())
     }
 }

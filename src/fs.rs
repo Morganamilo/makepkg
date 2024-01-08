@@ -10,15 +10,16 @@ use nix::sys::time::TimeSpec;
 
 use crate::error::{Context, IOContext, IOError, IOErrorExt, Result};
 
-pub fn current_dir() -> Result<PathBuf> {
-    let path = std::env::current_dir().context(Context::None, IOContext::CurrentDir)?;
+pub fn current_dir(context: Context) -> Result<PathBuf> {
+    let path = std::env::current_dir().context(context, IOContext::CurrentDir)?;
     Ok(path)
 }
 
 pub struct Check {
     context: Context,
     exists: bool,
-    //file: bool,
+    file: bool,
+    dir: bool,
 }
 
 impl Check {
@@ -26,11 +27,24 @@ impl Check {
         Check {
             context,
             exists: false,
-            //file: false,
+            file: false,
+            dir: false,
         }
     }
 
-    pub fn read(mut self) -> Self {
+    /*pub fn read(mut self) -> Self {
+        self.exists = true;
+        self
+    }*/
+
+    pub fn file(mut self) -> Self {
+        self.file = true;
+        self.exists = true;
+        self
+    }
+
+    pub fn dir(mut self) -> Self {
+        self.dir = true;
         self.exists = true;
         self
     }
@@ -39,12 +53,12 @@ impl Check {
         let path = path.as_ref();
 
         match metadata(path) {
-            //Ok(m) if self.file && !m.is_file() => {
-            //    self.err(IOContext::NotAFile(path.into()), io::ErrorKind::Other)
-            //}
-            //Ok(m) if self.directory && !m.is_dir() => {
-            //    self.err(path, IOAction::Directory, io::ErrorKind::Other)
-            //}
+            Ok(m) if self.file && !m.is_file() => {
+                self.err(IOContext::NotAFile(path.into()), io::ErrorKind::Other)
+            }
+            Ok(m) if self.dir && !m.is_dir() => {
+                self.err(IOContext::NotADir(path.into()), io::ErrorKind::Other)
+            }
             Err(e) if self.exists && e.kind() == io::ErrorKind::NotFound => {
                 self.err(IOContext::NotFound(path.into()), io::ErrorKind::Other)
             }
@@ -58,8 +72,8 @@ impl Check {
     }
 }
 
-pub fn resolve_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    let cwd = current_dir()?;
+pub fn resolve_path<P: AsRef<Path>>(context: Context, path: P) -> Result<PathBuf> {
+    let cwd = current_dir(context)?;
     Ok(resolve_path_relative(path, cwd))
 }
 

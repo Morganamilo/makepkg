@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     error::{Context, Error, IOContext, IOErrorExt, LintError, LintKind, Result},
-    fs::Check,
+    fs::{resolve_path, Check},
     lint_pkgbuild::check_pkgver,
     raw::{FunctionVariables, RawPkgbuild, Value, Variable},
 };
@@ -484,10 +484,15 @@ impl Pkgbuild {
 
     pub fn from_path<P: Into<PathBuf>>(dir: P) -> Result<Self> {
         let dir = dir.into();
+        let dir = resolve_path(Context::ReadPkgbuild, dir)?;
         let pkgbuild_path = dir.join("PKGBUILD");
+
+        Check::new(Context::ReadPkgbuild).dir().check(&dir)?;
+
         Check::new(Context::ReadPkgbuild)
-            .read()
+            .file()
             .check(&pkgbuild_path)?;
+
         let raw = RawPkgbuild::from_path(pkgbuild_path)?;
         let mut pkgbuild = Pkgbuild::default();
         let mut packages = Vec::new();
