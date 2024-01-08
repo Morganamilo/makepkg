@@ -171,6 +171,7 @@ impl Makepkg {
             None
         };
 
+        let mut reader_count = 0;
         let mut reader1 = None;
         let mut reader2 = None;
         let mut output = Vec::new();
@@ -193,10 +194,12 @@ impl Makepkg {
                 fds = Some((write1.as_raw_fd(), write2.as_raw_fd()));
                 command.stderr(write2);
                 reader2 = Some(read2);
+                reader_count += 1;
             }
 
             command.stdout(write1);
             reader1 = Some(read1);
+            reader_count += 1;
         }
 
         let mut child = command
@@ -257,7 +260,7 @@ impl Makepkg {
                     }
                 }
 
-                if done == 2 {
+                if done == reader_count {
                     break;
                 }
             }
