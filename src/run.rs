@@ -134,6 +134,7 @@ impl Makepkg {
             .arg(&dirs.pkgbuild)
             .arg(function)
             .arg(workingdir)
+            .env("CARCH", &self.config.arch)
             .env("startdir", &dirs.startdir)
             .env("srcdir", &dirs.srcdir)
             .env(
