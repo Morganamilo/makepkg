@@ -113,10 +113,10 @@ pub fn make_link<P1: AsRef<Path>, P2: AsRef<Path>>(
     Ok(())
 }
 
-pub fn read_link<P: AsRef<Path>>(path: P, context: Context) -> Result<()> {
+pub fn read_link<P: AsRef<Path>>(path: P, context: Context) -> Result<PathBuf> {
     let path = path.as_ref();
-    std::fs::read_link(path).context(context, IOContext::ReadLink(path.into()))?;
-    Ok(())
+    let real = std::fs::read_link(path).context(context, IOContext::ReadLink(path.into()))?;
+    Ok(real)
 }
 
 pub fn set_time<P: AsRef<Path>>(path: P, time: u64) -> Result<()> {

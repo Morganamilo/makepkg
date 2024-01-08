@@ -1,21 +1,22 @@
-mod curl;
-mod file;
-mod git;
-mod vcs;
+use std::{collections::BTreeMap, process::Command};
 
 pub use vcs::*;
-
-use std::{collections::BTreeMap, fs::remove_file, os::unix::fs::symlink, process::Command};
 
 use crate::{
     callback::Event,
     config::{DownloadAgent, PkgbuildDirs, VCSClient},
     error::{CommandErrorExt, Context, DownloadError, IOContext, IOErrorExt, Result},
-    fs::{mkdir, set_time},
+    fs::{make_link, mkdir, rm_file, set_time},
     options::Options,
     pkgbuild::{Function, Pkgbuild, Source},
     Makepkg,
 };
+
+mod curl;
+mod file;
+mod git;
+mod svn;
+mod vcs;
 
 impl Makepkg {
     pub fn download_sources(
@@ -88,20 +89,17 @@ impl Makepkg {
         &self,
         dirs: &PkgbuildDirs,
         source: &Source,
-        noextract: &[String],
+        no_extract: &[String],
     ) -> Result<()> {
         let srcdestfile = dirs.download_path(source);
         let srcfile = dirs.srcdir.join(source.file_name());
         if srcfile.exists() {
-            remove_file(&srcfile)
-                .context(Context::ExtractSources, IOContext::Remove(srcfile.clone()))?;
+            rm_file(&srcfile, Context::ExtractSources)?;
         }
-        symlink(&srcdestfile, &srcfile).context(
-            Context::ExtractSources,
-            IOContext::Link(srcdestfile.clone(), srcfile.clone()),
-        )?;
 
-        if noextract.iter().any(|s| s == source.file_name()) {
+        make_link(&srcdestfile, &srcfile, Context::ExtractSources)?;
+
+        if no_extract.iter().any(|s| s == source.file_name()) {
             self.event(Event::NoExtact(source.file_name().to_string()));
             return Ok(());
         }

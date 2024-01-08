@@ -252,7 +252,7 @@ pub enum IOContext {
     Read(PathBuf),
     ReadDir(PathBuf),
     CurrentDir,
-    Rename(String, String),
+    Rename(PathBuf, PathBuf),
     Utimensat(PathBuf),
     RemoveTempfile(PathBuf),
     Remove(PathBuf),
@@ -283,7 +283,9 @@ impl Display for IOContext {
             IOContext::Read(p) => write!(f, "read {}", p.display()),
             IOContext::ReadDir(p) => write!(f, "read dir {}", p.display()),
             IOContext::CurrentDir => write!(f, "failed to get current directory"),
-            IOContext::Rename(src, dst) => write!(f, "rename {} -> {}", src, dst),
+            IOContext::Rename(src, dst) => {
+                write!(f, "rename {} -> {}", src.display(), dst.display())
+            }
             IOContext::Utimensat(p) => write!(f, "failed to change access time: {}", p.display()),
             IOContext::RemoveTempfile(p) => write!(f, "can't remove tempfile {}", p.display()),
             IOContext::Remove(p) => write!(f, "rm {}", p.display()),
