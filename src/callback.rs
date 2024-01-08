@@ -164,7 +164,7 @@ impl Display for Event {
             Event::RemovingSrcdir => write!(f, "removing existing $srcdir/ directory"),
             Event::RemovingPkgdir => write!(f, "removing existing $pkgdir/ directory"),
             Event::UsingExistingSrcdir => write!(f, "using existing $srcdir/ directory"),
-            Event::StartingFakeroot => write!(f, "Starting fakeroot..."),
+            Event::StartingFakeroot => write!(f, "Starting fakeroot daemon..."),
             Event::CreatingPackage(file) => write!(f, "Creating package {}...", file),
             Event::CreatingDebugPackage(file) => write!(f, "Creating debug package {}...", file),
             Event::CreatingSourcePackage(file) => write!(f, "Creating source package {}...", file),
