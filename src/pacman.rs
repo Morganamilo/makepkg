@@ -1,7 +1,8 @@
 use std::process::Command;
 
-use crate::error::{CommandError, CommandErrorExt, Context, Result};
+use crate::error::{CommandErrorExt, Context, Result};
 
+/*
 pub fn deptest<'a, I: Iterator<Item = &'a str>>(pkgs: I) -> Result<Vec<String>> {
     read_pacman(&["-T"], pkgs)
 }
@@ -10,6 +11,7 @@ pub fn installed() -> Result<Vec<String>> {
     let pkgs = read_pacman(&["-Qq"], None.into_iter())?;
     Ok(pkgs)
 }
+*/
 
 pub fn buildinfo_installed() -> Result<Vec<String>> {
     let mut installed = Vec::new();
@@ -63,6 +65,7 @@ where
     Ok(output.trim().lines().map(|l| l.to_string()).collect())
 }
 
+/*
 pub fn run_pacman<'a, I: Iterator<Item = &'a str>>(op: &str, args: &[&str], pkgs: I) -> Result<()> {
     let mut command = Command::new("sudo");
     command.arg("pacman").arg(op).args(args).arg("--");
@@ -71,3 +74,4 @@ pub fn run_pacman<'a, I: Iterator<Item = &'a str>>(op: &str, args: &[&str], pkgs
     command.status().cmd_context(&command, Context::RunPacman)?;
     Ok(())
 }
+*/

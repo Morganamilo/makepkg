@@ -36,7 +36,7 @@ impl Makepkg {
         &self,
         dirs: &PkgbuildDirs,
         options: &Options,
-        pkgbuild: &Pkgbuild,
+        _pkgbuild: &Pkgbuild,
         sources: &BTreeMap<&VCSClient, Vec<&Source>>,
     ) -> Result<()> {
         for (client, sources) in sources {

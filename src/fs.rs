@@ -18,8 +18,7 @@ use std::{fs::metadata, path::Path};
 pub struct Check {
     context: Context,
     exists: bool,
-    file: bool,
-    read: bool,
+    //file: bool,
 }
 
 impl Check {
@@ -27,18 +26,8 @@ impl Check {
         Check {
             context,
             exists: false,
-            file: false,
-            read: false,
+            //file: false,
         }
-    }
-
-    pub fn exists(mut self) -> Self {
-        self.exists = true;
-        self
-    }
-    pub fn file(mut self) -> Self {
-        self.exists = true;
-        self
     }
 
     pub fn read(mut self) -> Self {
@@ -50,9 +39,9 @@ impl Check {
         let path = path.as_ref();
 
         match metadata(path) {
-            Ok(m) if self.file && !m.is_file() => {
-                self.err(IOContext::NotAFile(path.into()), io::ErrorKind::Other)
-            }
+            //Ok(m) if self.file && !m.is_file() => {
+            //    self.err(IOContext::NotAFile(path.into()), io::ErrorKind::Other)
+            //}
             //Ok(m) if self.directory && !m.is_dir() => {
             //    self.err(path, IOAction::Directory, io::ErrorKind::Other)
             //}
