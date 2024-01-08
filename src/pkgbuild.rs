@@ -202,12 +202,7 @@ pub enum Fragment {
 
 impl Display for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Fragment::Revision(v) => write!(f, "revision={}", v),
-            Fragment::Branch(v) => write!(f, "branch={}", v),
-            Fragment::Commit(v) => write!(f, "commit={}", v),
-            Fragment::Tag(v) => write!(f, "tag={}", v),
-        }
+        write!(f, "{}={}", self.kind(), self.value())
     }
 }
 
@@ -234,6 +229,15 @@ impl Fragment {
             Fragment::Branch(_) => "branch",
             Fragment::Commit(_) => "commit",
             Fragment::Tag(_) => "tag",
+        }
+    }
+
+    pub fn value(&self) -> &str {
+        match self {
+            Fragment::Revision(s)
+            | Fragment::Branch(s)
+            | Fragment::Commit(s)
+            | Fragment::Tag(s) => s.as_str(),
         }
     }
 }
