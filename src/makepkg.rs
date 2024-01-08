@@ -19,6 +19,16 @@ impl Drop for FakeRoot {
     }
 }
 
+impl FakeRoot {
+    pub(crate) fn library_name() -> &'static str {
+        if cfg!(os_family = "apple") {
+            "libfakeroot.dylib"
+        } else {
+            "libfakeroot.so"
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Makepkg {
     pub config: Config,

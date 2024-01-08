@@ -287,6 +287,7 @@ pub enum IOContext {
     NotAFile(PathBuf),
     NotADir(PathBuf),
     NotFound(PathBuf),
+    FindLibfakeroot(Vec<PathBuf>),
     Chmod(PathBuf),
 }
 
@@ -324,6 +325,13 @@ impl Display for IOContext {
             IOContext::NotADir(p) => write!(f, "{} is not a directory", p.display()),
             IOContext::NotFound(p) => write!(f, "{}: no such file or directory", p.display()),
             IOContext::Chmod(p) => write!(f, "can't change permissions on {}", p.display()),
+            IOContext::FindLibfakeroot(p) => {
+                write!(f, "can't find fakeroot library (searched:",)?;
+                for p in p {
+                    write!(f, " {}", p.display())?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }

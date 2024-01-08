@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{stdout, ErrorKind, Read, Write},
+    io::{self, stdout, ErrorKind, Read, Write},
     ops::Deref,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
     path::Path,
@@ -15,8 +15,9 @@ use nix::{
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{CommandError, CommandErrorExt, Context, IOContext, IOErrorExt, Result},
+    error::{CommandError, CommandErrorExt, Context, IOContext, IOError, IOErrorExt, Result},
     fs::open,
+    installation_variables::FAKEROOT_LIBDIRS,
     makepkg::FakeRoot,
     options::Options,
     pkgbuild::{Function, Pkgbuild},
@@ -300,6 +301,18 @@ impl Makepkg {
         }
 
         self.event(Event::StartingFakeroot);
+
+        if !FAKEROOT_LIBDIRS
+            .split(":")
+            .any(|dir| Path::new(dir).join(FakeRoot::library_name()).exists())
+        {
+            return Err(IOError::new(
+                Context::StartFakeroot,
+                IOContext::FindLibfakeroot(FAKEROOT_LIBDIRS.split(":").map(Into::into).collect()),
+                io::ErrorKind::Other,
+            )
+            .into());
+        }
 
         let mut key = [0; 50];
         let mut command = Command::new("faked");

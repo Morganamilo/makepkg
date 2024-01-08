@@ -11,7 +11,7 @@ use crate::{
     options::Options,
     pacman::buildinfo_installed,
     pkgbuild::{Package, Pkgbuild},
-    Makepkg,
+    FakeRoot, Makepkg,
 };
 
 use std::{
@@ -515,13 +515,12 @@ impl Makepkg {
     pub(crate) fn fakeroot_env(&self, command: &mut Command) -> Result<()> {
         let key = self.fakeroot()?;
         #[cfg(not(os_family = "apple"))]
-        command
-            .env("LD_LIBRARY_PATH", FAKEROOT_LIBDIRS)
-            .env("LD_PRELOAD", "libfakeroot.so");
+        command.env("LD_LIBRARY_PATH", FAKEROOT_LIBDIRS);
+        command.env("LD_PRELOAD", FakeRoot::library_name());
         #[cfg(os_family = "apple")]
         command
             .env("DYLD_FALLBACK_LIBRARY_PATH", FAKEROOT_LIBDIRS)
-            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib");
+            .env("DYLD_INSERT_LIBRARIES", FakeRoot::library_name());
         command.env("FAKEROOTKEY", key);
         Ok(())
     }
