@@ -2,6 +2,9 @@
 
 use std::fmt::Display;
 
+pub use callback::*;
+pub use makepkg::*;
+pub use options::*;
 use pkgbuild::Pkgbuild;
 
 mod build;
@@ -23,10 +26,6 @@ mod util;
 pub mod config;
 pub mod error;
 pub mod pkgbuild;
-
-pub use callback::*;
-pub use makepkg::*;
-pub use options::*;
 
 pub(crate) static TOOL_NAME: &str = env!("CARGO_PKG_NAME");
 

@@ -66,8 +66,7 @@ impl Makepkg {
                 .arg("--all")
                 .arg("-p")
                 .env("GIT_TERMINAL_PROMPT", "0")
-                .current_dir(dirs.download_path(source));
-            command
+                .current_dir(dirs.download_path(source))
                 .status()
                 .download_context(source, &command, Context::None)?;
         }
@@ -112,7 +111,7 @@ impl Makepkg {
                     VCSKind::Git,
                     f.clone(),
                 )
-                .into())
+                .into());
             }
             _ => (),
         }

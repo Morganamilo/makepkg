@@ -1,24 +1,19 @@
 use std::{
-    fs::{remove_file, rename, File},
-    io::Write,
-    mem::replace,
-    path::PathBuf,
-    result::Result as StdResult,
-    time::Duration,
+    fs::File, io::Write, mem::replace, path::PathBuf, result::Result as StdResult, time::Duration,
+};
+
+use curl::{
+    easy::{Easy2, Handler, WriteError},
+    multi::{Easy2Handle, Multi},
 };
 
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
     error::{Context, DownloadError, IOContext, IOErrorExt, Result},
-    fs::open,
+    fs::{open, rename, rm_file},
     pkgbuild::Source,
     Makepkg,
-};
-
-use curl::{
-    easy::{Easy2, Handler, WriteError},
-    multi::{Easy2Handle, Multi},
 };
 
 pub struct Handle<'a> {
@@ -86,10 +81,7 @@ impl Makepkg {
         for handle in &handles {
             let context = handle.get_ref();
             if context.temp_path.exists() {
-                remove_file(&context.temp_path).context(
-                    Context::RetrieveSources,
-                    IOContext::RemoveTempfile(context.temp_path.clone()),
-                )?;
+                rm_file(&context.temp_path, Context::RetrieveSources)?;
             }
         }
 
@@ -141,24 +133,13 @@ fn handle_messages(curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
                     return;
                 }
 
-                if let Err(err) = rename(&context.temp_path, &context.final_path).context(
+                if let Err(err) = rename(
+                    &context.temp_path,
+                    &context.final_path,
                     Context::RetrieveSources,
-                    IOContext::Rename(
-                        context
-                            .temp_path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string(),
-                        context
-                            .final_path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string(),
-                    ),
-                ) {
-                    context.err = Err(err.into())
+                )? {
+                    context.err = Err(err.into());
+                    return;
                 }
             };
         }
