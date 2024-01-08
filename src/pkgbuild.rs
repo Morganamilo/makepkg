@@ -701,6 +701,8 @@ mod test {
                 | Event::RemovingPkgdir
                 | Event::AddingFileTopackage(_)
                 | Event::GeneratingPackageFile(_)
+                | Event::DownloadingVCS(_, _)
+                | Event::ExtractingVCS(_, _)
                 | Event::UpdatingVCS(_, _) => println!("    {}", event),
                 Event::VerifyingChecksum(_) | Event::VerifyingSignature(_) => {
                     print!("    {} ...", event)

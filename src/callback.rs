@@ -23,6 +23,7 @@ impl CallBacks for CallBackPrinter {
             | Event::RemovingPkgdir
             | Event::AddingFileTopackage(_)
             | Event::GeneratingPackageFile(_)
+            | Event::DownloadingVCS(_, _)
             | Event::UpdatingVCS(_, _) => println!("    {}", event),
             Event::VerifyingChecksum(_) | Event::VerifyingSignature(_) => {
                 print!("    {} ...", event)
@@ -121,7 +122,9 @@ pub enum Event {
     CreatingSourcePackage(String),
     AddingFileTopackage(String),
     GeneratingPackageFile(String),
+    DownloadingVCS(VCSKind, Source),
     UpdatingVCS(VCSKind, Source),
+    ExtractingVCS(VCSKind, Source),
 }
 
 impl From<SigFailed> for Event {
@@ -167,7 +170,14 @@ impl Display for Event {
             Event::CreatingSourcePackage(file) => write!(f, "Creating source package {}...", file),
             Event::AddingFileTopackage(file) => write!(f, "adding {}...", file),
             Event::GeneratingPackageFile(file) => write!(f, "generating {}...", file),
+            Event::DownloadingVCS(k, s) => write!(f, "cloning {} repo {}...", k, s.file_name()),
             Event::UpdatingVCS(k, s) => write!(f, "updading {} repo {}...", k, s.file_name()),
+            Event::ExtractingVCS(k, s) => write!(
+                f,
+                "creating working copy of {} {} repo...",
+                s.file_name(),
+                k,
+            ),
         }
     }
 }

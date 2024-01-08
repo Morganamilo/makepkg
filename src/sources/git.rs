@@ -19,7 +19,7 @@ impl Makepkg {
         let path = dirs.download_path(source);
 
         if !path.exists() || !path.join("objects").exists() {
-            println!("    cloning {} git repo...", source.file_name());
+            self.event(Event::DownloadingVCS(VCSKind::Git, source.clone()));
 
             let flags = std::env::var("GITFLAGS");
             let flags = flags
@@ -53,7 +53,9 @@ impl Makepkg {
                 .to_string();
 
             if remote_url.trim_end_matches(".git") != source.url.trim_end_matches(".git") {
-                return Err(DownloadError::RemotesDiffer(source.clone()).into());
+                return Err(
+                    DownloadError::RemotesDiffer(source.clone(), remote_url.clone()).into(),
+                );
             }
 
             self.event(Event::UpdatingVCS(VCSKind::Git, source.clone()));
@@ -77,7 +79,7 @@ impl Makepkg {
         let mut gitref = "origin/HEAD".to_string();
         let mut updating = false;
         let srcpath = dirs.srcdir.join(source.file_name());
-        //println!("    creating working copy of {} git repo...", source.path());
+        self.event(Event::ExtractingVCS(VCSKind::Git, source.clone()));
 
         if srcpath.exists() {
             updating = true;
@@ -104,7 +106,14 @@ impl Makepkg {
         match &source.fragment {
             Some(Fragment::Commit(r) | Fragment::Tag(r)) => gitref = r.to_string(),
             Some(Fragment::Branch(r)) => gitref = format!("origin/{}", r),
-            Some(f) => panic!("git does not support fragment {}", f),
+            Some(f) => {
+                return Err(DownloadError::UnsupportedFragment(
+                    source.clone(),
+                    VCSKind::Git,
+                    f.clone(),
+                )
+                .into())
+            }
             _ => (),
         }
 
@@ -125,10 +134,12 @@ impl Makepkg {
                 .to_string();
 
             if !tagname.is_empty() && tagname != gitref {
-                panic!(
-                    "failed to checkout version {}, the git tag has been forged",
-                    gitref
-                );
+                return Err(DownloadError::RefsDiffer(
+                    source.clone(),
+                    gitref.clone(),
+                    tagname.clone(),
+                )
+                .into());
             }
         }
 

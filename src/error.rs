@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::package::PackageKind;
-use crate::pkgbuild::Source;
+use crate::pkgbuild::{Fragment, Source};
+use crate::sources::VCSKind;
 use crate::FileKind;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -481,7 +482,9 @@ pub enum DownloadError {
     CurlMulti(curl::MultiError),
     Status(Source, u32),
     Command(Source, CommandError),
-    RemotesDiffer(Source),
+    UnsupportedFragment(Source, VCSKind, Fragment),
+    RemotesDiffer(Source, String),
+    RefsDiffer(Source, String, String),
 }
 
 impl Display for DownloadError {
@@ -494,8 +497,19 @@ impl Display for DownloadError {
             DownloadError::CurlMulti(e) => write!(f, "curl: {}", e),
             DownloadError::Status(s, code) => write!(f, "{} (status {})", s.file_name(), code),
             DownloadError::Command(s, e) => write!(f, "{} ({})", s.file_name(), e),
-            DownloadError::RemotesDiffer(s) => {
+            DownloadError::RemotesDiffer(s, _) => {
                 write!(f, "{} is not a clone of {}", s.file_name(), s.url)
+            }
+            DownloadError::UnsupportedFragment(_, k, frag) => {
+                write!(f, "{} does not support fragment {}", k, frag)
+            }
+            DownloadError::RefsDiffer(s, r, _) => {
+                write!(
+                    f,
+                    "{}: failed to checkout version {}, the git tag has been forged",
+                    s.file_name(),
+                    r,
+                )
             }
         }
     }
