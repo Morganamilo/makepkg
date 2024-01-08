@@ -1,9 +1,10 @@
-use std::{collections::BTreeMap, fs::rename, process::Command};
+use std::{collections::BTreeMap, process::Command};
 
 use crate::{
     callback::Event,
     config::{DownloadAgent, PkgbuildDirs},
-    error::{CommandErrorExt, Context, IOContext, IOErrorExt, Result},
+    error::{CommandErrorExt, Context, Result},
+    fs::rename,
     pkgbuild::Source,
     Makepkg,
 };
@@ -39,12 +40,9 @@ impl Makepkg {
                     .status()
                     .download_context(source, &command, Context::None)?;
 
-                rename(&part, &final_path).context(
-                    Context::RetrieveSources,
-                    IOContext::Rename(part.to_string(), final_path.to_string()),
-                )?;
+                rename(&part, &final_path, Context::RetrieveSources)?;
             }
-        };
+        }
         Ok(())
     }
 }

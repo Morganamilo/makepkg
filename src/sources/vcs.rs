@@ -1,5 +1,7 @@
+use gpgme::error::return_err;
 use std::{collections::BTreeMap, fmt::Display};
 
+use crate::error::DownloadError;
 use crate::{
     config::{PkgbuildDirs, VCSClient},
     error::Result,
@@ -10,12 +12,14 @@ use crate::{
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VCSKind {
     Git,
+    SVN,
 }
 
 impl Display for VCSKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             VCSKind::Git => f.write_str("git"),
+            VCSKind::SVN => f.write_str("svn"),
         }
     }
 }
@@ -28,7 +32,8 @@ impl Makepkg {
     pub(crate) fn extract_vcs(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
         match source.protocol() {
             Some("git") => self.extract_git(dirs, source),
-            proto => panic!("unknown vcs protcol {}", proto.unwrap_or("none")),
+            Some("svn") => self.extract_svn(dirs, source),
+            proto => panic!("unknown vcs protocol {}", proto.unwrap_or("none")),
         }
     }
 
@@ -41,15 +46,15 @@ impl Makepkg {
     ) -> Result<()> {
         for (client, sources) in sources {
             //self.check_vcs_deps(pkgbuild, client)?;
-            for source in sources {
+            for &source in sources {
                 match client.protocol.as_str() {
                     "git" => self.download_git(dirs, options, source)?,
-                    //"svn" => self.download_svn(source)?,
+                    "svn" => self.download_svn(dirs, options, source)?,
                     //"hg" => self.download_hg(source)?,
                     //"fossil" => self.download_fossil(source)?,
                     //"bzr" => self.download_bzr(source)?,
                     //_ => bail!("unknown vcs client {}", client.protocol),
-                    _ => panic!("unknown vcs client {}", client.protocol),
+                    _ => return Err(DownloadError::UnknownVCSClient(source.clone()).into()),
                 }
             }
         }

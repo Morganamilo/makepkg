@@ -1,19 +1,19 @@
+use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
+use std::io::{self};
+use std::os::unix;
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Component, PathBuf};
+use std::{fs::metadata, path::Path};
+
 use nix::sys::stat::{utimensat, UtimensatFlags};
 use nix::sys::time::TimeSpec;
 
 use crate::error::{Context, IOContext, IOError, IOErrorExt, Result};
 
-use std::fs::{create_dir_all, remove_dir_all, File, OpenOptions};
-use std::io::{self};
-use std::os::unix::fs::PermissionsExt;
-use std::path::{Component, PathBuf};
-
 pub fn current_dir() -> Result<PathBuf> {
     let path = std::env::current_dir().context(Context::None, IOContext::CurrentDir)?;
     Ok(path)
 }
-
-use std::{fs::metadata, path::Path};
 
 pub struct Check {
     context: Context,
@@ -85,10 +85,38 @@ pub fn rm_all<P: AsRef<Path>>(path: P, context: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn rm_file<P: AsRef<Path>>(path: P, context: Context) -> Result<()> {
+    let path = path.as_ref();
+    remove_file(path).context(context, IOContext::Remove(path.into()))?;
+    Ok(())
+}
+
+pub fn rename<P1: AsRef<Path>, P2: AsRef<Path>>(src: P1, dest: P2, context: Context) -> Result<()> {
+    let (src, dest) = (src.as_ref(), dest.as_ref());
+    std::fs::rename(src, dest).context(context, IOContext::Rename(src.into(), dest.into()))?;
+    Ok(())
+}
+
 pub fn copy<P1: AsRef<Path>, P2: AsRef<Path>>(src: P1, dest: P2, context: Context) -> Result<()> {
     let (src, dest) = (src.as_ref(), dest.as_ref());
     std::fs::copy(src, dest).context(context, IOContext::Copy(src.into(), dest.into()))?;
     Ok(())
+}
+
+pub fn make_link<P1: AsRef<Path>, P2: AsRef<Path>>(
+    src: P1,
+    dest: P2,
+    context: Context,
+) -> Result<()> {
+    let (src, dest) = (src.as_ref(), dest.as_ref());
+    unix::fs::symlink(src, dest).context(context, IOContext::MakeLink(src.into(), dest.into()))?;
+    Ok(())
+}
+
+pub fn read_link<P: AsRef<Path>>(path: P, context: Context) -> Result<PathBuf> {
+    let path = path.as_ref();
+    let real = std::fs::read_link(path).context(context, IOContext::ReadLink(path.into()))?;
+    Ok(real)
 }
 
 pub fn set_time<P: AsRef<Path>>(path: P, time: u64) -> Result<()> {

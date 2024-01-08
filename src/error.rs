@@ -1,7 +1,12 @@
 use std::process::{Child, ExitStatus, Output};
 use std::{
-    fmt::Display, io, iter, path::PathBuf, process::Command, result::Result as StdResult,
-    string::FromUtf8Error, time::SystemTimeError,
+    fmt::Display,
+    io, iter,
+    path::{PathBuf, StripPrefixError},
+    process::Command,
+    result::Result as StdResult,
+    string::FromUtf8Error,
+    time::SystemTimeError,
 };
 
 use crate::package::PackageKind;
@@ -88,6 +93,18 @@ impl<T> IOErrorExt<T> for nix::Result<T> {
 impl<T> IOErrorExt<T> for io::Result<T> {
     fn context(self, context: Context, iocontext: IOContext) -> StdResult<T, IOError> {
         self.map_err(|e| IOError::new(context, iocontext, e))
+    }
+}
+
+impl<T> IOErrorExt<T> for StdResult<T, StripPrefixError> {
+    fn context(self, context: Context, iocontext: IOContext) -> StdResult<T, IOError> {
+        self.map_err(|e| {
+            IOError::new(
+                context,
+                iocontext,
+                io::Error::new(io::ErrorKind::NotFound, e),
+            )
+        })
     }
 }
 
@@ -252,11 +269,12 @@ pub enum IOContext {
     Read(PathBuf),
     ReadDir(PathBuf),
     CurrentDir,
-    Rename(String, String),
+    Rename(PathBuf, PathBuf),
     Utimensat(PathBuf),
     RemoveTempfile(PathBuf),
     Remove(PathBuf),
-    Link(PathBuf, PathBuf),
+    MakeLink(PathBuf, PathBuf),
+    ReadLink(PathBuf),
     Copy(PathBuf, PathBuf),
     WriteProcess(String),
     Stat(PathBuf),
@@ -281,17 +299,22 @@ impl Display for IOContext {
             IOContext::Write(p) => write!(f, "write {}", p.display()),
             IOContext::Read(p) => write!(f, "read {}", p.display()),
             IOContext::ReadDir(p) => write!(f, "read dir {}", p.display()),
-            IOContext::CurrentDir => write!(f, "failed to get current directory",),
-            IOContext::Rename(src, dst) => write!(f, "rename {} -> {}", src, dst),
-            IOContext::Utimensat(p) => write!(f, "utimenstat {}", p.display()),
+            IOContext::CurrentDir => write!(f, "failed to get current directory"),
+            IOContext::Rename(src, dst) => {
+                write!(f, "rename {} -> {}", src.display(), dst.display())
+            }
+            IOContext::Utimensat(p) => write!(f, "failed to change access time: {}", p.display()),
             IOContext::RemoveTempfile(p) => write!(f, "can't remove tempfile {}", p.display()),
             IOContext::Remove(p) => write!(f, "rm {}", p.display()),
-            IOContext::Link(src, dst) => write!(f, "link {} -> {}", dst.display(), src.display()),
+            IOContext::MakeLink(src, dst) => {
+                write!(f, "link {} -> {}", dst.display(), src.display())
+            }
+            IOContext::ReadLink(p) => write!(f, "readlink {}", p.display()),
             IOContext::Copy(src, dst) => write!(f, "copy {} -> {}", src.display(), dst.display()),
             IOContext::WriteProcess(name) => write!(f, "couldn't write to {}", name),
             IOContext::Stat(p) => write!(f, "stat {}", p.display()),
             IOContext::Pipe => write!(f, "unable to create pipe"),
-            IOContext::Dup => write!(f, "unable to duplicate file descriptior"),
+            IOContext::Dup => write!(f, "unable to duplicate file description"),
             IOContext::InvalidPath(p) => write!(f, "invalid path \"{}\"", p.display()),
             IOContext::NotAFile(p) => write!(f, "{} is not a file", p.display()),
             IOContext::NotFound(p) => write!(f, "{}: no such file or directory", p.display()),
@@ -478,6 +501,7 @@ impl LintError {
 pub enum DownloadError {
     SourceMissing(Source),
     UnknownProtocol(Source),
+    UnknownVCSClient(Source),
     Curl(curl::Error),
     CurlMulti(curl::MultiError),
     Status(Source, u32),
@@ -493,6 +517,7 @@ impl Display for DownloadError {
         match self {
             DownloadError::SourceMissing(s) => write!(f, "can't find source {}", s),
             DownloadError::UnknownProtocol(s) => write!(f, "unknown protocol {}", s),
+            DownloadError::UnknownVCSClient(s) => write!(f, "unknown VCS client {}", s),
             DownloadError::Curl(e) => write!(f, "curl: {}", e),
             DownloadError::CurlMulti(e) => write!(f, "curl: {}", e),
             DownloadError::Status(s, code) => write!(f, "{} (status {})", s.file_name(), code),
