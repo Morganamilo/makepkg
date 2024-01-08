@@ -38,7 +38,7 @@ impl Makepkg {
                 .env("GIT_TERMINAL_PROMPT", "0");
             let status = command.status();
             status.download_context(source, &command, Context::None)?;
-        } else if !options.holdver {
+        } else if !options.hold_ver {
             let mut command = Command::new("git");
             command
                 .arg("config")

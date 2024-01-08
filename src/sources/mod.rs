@@ -69,7 +69,7 @@ impl Makepkg {
         if !options.no_prepare {
             self.run_function(options, pkgbuild, Function::Prepare)?
         }
-        if options.reproducable {
+        if options.reproducible {
             for file in walkdir::WalkDir::new(&dirs.srcdir) {
                 let file = file.context(
                     Context::ExtractSources,

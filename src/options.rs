@@ -4,7 +4,7 @@ pub struct Options {
     pub skip_pgp_check: bool,
     pub skip_checksums: bool,
     pub no_prepare: bool,
-    pub reproducable: bool,
+    pub reproducible: bool,
     pub ignore_arch: bool,
     pub clean_build: bool,
     pub no_extract: bool,
@@ -15,5 +15,5 @@ pub struct Options {
     pub check: bool,
     pub no_check: bool,
     pub no_archive: bool,
-    pub holdver: bool,
+    pub hold_ver: bool,
 }
