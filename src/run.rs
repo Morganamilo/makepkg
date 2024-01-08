@@ -283,12 +283,12 @@ impl Makepkg {
         self.event(Event::StartingFakeroot);
 
         if !FAKEROOT_LIBDIRS
-            .split(":")
+            .split(':')
             .any(|dir| Path::new(dir).join(FakeRoot::library_name()).exists())
         {
             return Err(IOError::new(
                 Context::StartFakeroot,
-                IOContext::FindLibfakeroot(FAKEROOT_LIBDIRS.split(":").map(Into::into).collect()),
+                IOContext::FindLibfakeroot(FAKEROOT_LIBDIRS.split(':').map(Into::into).collect()),
                 io::ErrorKind::Other,
             )
             .into());

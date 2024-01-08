@@ -166,13 +166,10 @@ fn lint_newline<'a, I: Iterator<Item = &'a Variable>>(iter: I, lints: &mut Vec<L
 
 fn lint_arrays<'a, I: Iterator<Item = &'a Variable>>(iter: I, lints: &mut Vec<LintKind>) {
     for var in iter {
-        match &var.value {
-            Value::Array(a) => {
-                if a.iter().any(|v| v.is_empty()) {
-                    lints.push(LintKind::VariabeContainsEmptyString(var.name.clone()))
-                }
+        if let Value::Array(a) = &var.value {
+            if a.iter().any(|v| v.is_empty()) {
+                lints.push(LintKind::VariabeContainsEmptyString(var.name.clone()))
             }
-            _ => (),
         }
     }
 }

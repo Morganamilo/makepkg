@@ -138,7 +138,7 @@ fn handle_messages(curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
                     &context.final_path,
                     Context::RetrieveSources,
                 ) {
-                    context.err = Err(err.into());
+                    context.err = Err(err);
                     return;
                 }
             };

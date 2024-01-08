@@ -25,7 +25,7 @@ fn main() {
     let prefix = var("PREFIX", "/usr");
     let exec_prefix = var("EXEC_PREFIX", &prefix);
     let sysconfdir = var("SYSCONFDIR", "/etc");
-    let fakeroot_prefix = var("FAKEROOT_PREFIX", &exec_prefix);
+    let fakeroot_prefix = var("FAKEROOT_PREFIX", exec_prefix);
     let fakeroot_libsuffix = var("FAKEROOT_LIBSUFFIX", "lib:lib64:lib32");
 
     let fakeroot_libdirs = fakeroot_libsuffix

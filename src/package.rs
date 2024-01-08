@@ -58,7 +58,7 @@ impl Makepkg {
             self.event(Event::CreatingPackage(pkg.pkgname.to_string()));
         }
 
-        let pkgdir = dirs.pkgdir(&pkg);
+        let pkgdir = dirs.pkgdir(pkg);
 
         self.generate_pkginfo(dirs, pkgbuild, pkg, debug)?;
         self.generate_buildinfo(dirs, pkgbuild, pkg)?;
@@ -99,7 +99,7 @@ impl Makepkg {
 
     fn generate_mtree(&self, dirs: &PkgbuildDirs, pkg: &Package) -> Result<()> {
         self.event(Event::GeneratingPackageFile(".MTREE".to_string()));
-        let pkgdir = dirs.pkgdir(&pkg);
+        let pkgdir = dirs.pkgdir(pkg);
         let files = self.package_files(&pkgdir)?;
 
         let mtree = pkgdir.join(".MTREE");
@@ -175,7 +175,7 @@ impl Makepkg {
             pkgfile = dirs.srcpkgdest.join(&pkgfilename);
         } else {
             pkgname = pkg.pkgname.as_str();
-            pkgdir = dirs.pkgdir(&pkg);
+            pkgdir = dirs.pkgdir(pkg);
             pkgext = self.config.pkgext.as_str();
             pkgfilename = format!(
                 "{}-{}-{}{}",
@@ -250,7 +250,7 @@ impl Makepkg {
         pkg: &Package,
     ) -> Result<()> {
         self.event(Event::GeneratingPackageFile(".BUILDINFO".to_string()));
-        let binfo = dirs.pkgdir(&pkg).join(".BUILDINFO");
+        let binfo = dirs.pkgdir(pkg).join(".BUILDINFO");
         let mut file = File::options();
         file.write(true).create(true).truncate(true);
         let mut file = open(
@@ -320,7 +320,7 @@ impl Makepkg {
         let size = self.package_size(dirs, pkg)?;
         let c = self.config();
 
-        let pkgdir = dirs.pkgdir(&pkg).join(".PKGINFO");
+        let pkgdir = dirs.pkgdir(pkg).join(".PKGINFO");
         let mut file = File::options();
         file.write(true).create(true).truncate(true);
         let mut file = open(
@@ -417,7 +417,7 @@ impl Makepkg {
     }
 
     fn package_size(&self, dirs: &PkgbuildDirs, pkg: &Package) -> Result<u64> {
-        let path = dirs.pkgdir(&pkg);
+        let path = dirs.pkgdir(pkg);
         let mut size = 0;
         let mut seen = HashSet::new();
         for file in walkdir::WalkDir::new(&path).follow_root_links(false) {
