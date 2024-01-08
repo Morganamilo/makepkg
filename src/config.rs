@@ -69,21 +69,27 @@ impl FromStr for DownloadAgent {
     }
 }
 
+/// These are the paths that makepkg will use to run the build process and output package files.
+///
+/// By default makepkg will run the build and generate package files inside the PKGBUILD directory
+/// unless explicitly configured in [`Config`] to use other directories.
+///
+/// This means each [`PkgbuildDirs`] is specific to the [`Config`] and [`Pkgbuild`] combination it was generated from.
 #[derive(Debug, Default)]
 pub struct PkgbuildDirs {
-    /// The directory the `PKGBUILD` resides in.
+    /// The directory the [`Pkgbuild`] resides in.
     pub startdir: PathBuf,
-    /// Full path to the `PKGBUILD` file.
+    /// Full path to the [`Pkgbuild`] file.
     pub pkgbuild: PathBuf,
-    /// Directory containing `SRCDIR` and `PKGDIR`.
-    /// If `BUILDDIR` is not set this will be the same as `STARTDIR`.
+    /// Directory containing [`srcdir`](`PkgbuildDirs::srcdir`) and [`pkgdir`](`PkgbuildDirs::pkgdir`).
+    /// If [`builddir`](`PkgbuildDirs::builddir`) is not set this will be the same as [`startdir`](`PkgbuildDirs::startdir`).
     pub builddir: PathBuf,
     /// The directory that sources are extracted to for the actual build to work with.
-    /// This will be `STARTDIR/src`, or if `BUILDDIR` is set, `BUILDDIR/PKGBASE/src`.
+    /// This will be [`startdir`](`PkgbuildDirs::startdir`)/`src`, or if  [`builddir`](`PkgbuildDirs::builddir`) is set, [`builddir`](`PkgbuildDirs::builddir`)/[`pkgbase`](`Pkgbuild::pkgbase`)/`src`.
     pub srcdir: PathBuf,
     /// The directory that the build will places files into to be packages.
-    /// Each package in the `PKGBUILD` writes to `PKGDIR/PKGNAME`.
-    /// This will be `STARTDIR/pkg`, or if `BUILDDIR` is set, `BUILDDIR/PKGBASE/pkg`.
+    /// Each package in the [`Pkgbuild`] writes to [`pkgdir`](`PkgbuildDirs::pkgdir`)/[`pkgname`](`Package::pkgname`).
+    /// This will be [`startdir`](`PkgbuildDirs::startdir`)/`pkg`, or if [`builddir`](`PkgbuildDirs::builddir`) is set, [`builddir`](`PkgbuildDirs::builddir`)/[`pkgbase`](`Pkgbuild::pkgbase`)/`pkg`.
     pub pkgdir: PathBuf,
     /// The directory sources are downloaded to.
     pub srcdest: PathBuf,
