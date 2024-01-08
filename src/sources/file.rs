@@ -44,7 +44,7 @@ impl Makepkg {
                     IOContext::Rename(part.to_string(), final_path.to_string()),
                 )?;
             }
-        };
+        }
         Ok(())
     }
 }
