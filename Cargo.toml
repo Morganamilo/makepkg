@@ -19,3 +19,6 @@ walkdir = "2.4.0"
 
 [dev-dependencies]
 ansi_term = "0.12.1"
+
+[build-dependencies]
+dotenvy = "0.15.7"

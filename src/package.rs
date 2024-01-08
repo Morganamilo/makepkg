@@ -6,6 +6,7 @@ use crate::{
     config::PkgbuildDirs,
     error::{CommandErrorExt, Context, IOContext, IOErrorExt, LintError, LintKind, Result},
     fs::{copy, open, set_time},
+    installation_variables::FAKEROOT_LIBDIRS,
     integ::hash_file,
     options::Options,
     pacman::buildinfo_installed,
@@ -513,18 +514,15 @@ impl Makepkg {
 
     pub(crate) fn fakeroot_env(&self, command: &mut Command) -> Result<()> {
         let key = self.fakeroot()?;
+        #[cfg(not(os_family = "apple"))]
         command
-            .env(
-                "LD_LIBRARY_PATH",
-                "/usr/lib/libfakeroot:/usr/lib64/libfakeroot:/usr/lib32/libfakeroot",
-            )
-            .env(
-                "DYLD_FALLBACK_LIBRARY_PATH",
-                "/opt/pacman/usr/lib/libfakeroot:/opt/pacman/usr/lib64/libfakeroot:/opt/pacman/usr/lib32/libfakeroot",
-            )
-            .env("LD_PRELOAD", "libfakeroot.so")
-            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib")
-            .env("FAKEROOTKEY", key);
+            .env("LD_LIBRARY_PATH", FAKEROOT_LIBDIRS)
+            .env("LD_PRELOAD", "libfakeroot.so");
+        #[cfg(os_family = "apple")]
+        command
+            .env("DYLD_FALLBACK_LIBRARY_PATH", FAKEROOT_LIBDIRS)
+            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib");
+        command.env("FAKEROOTKEY", key);
         Ok(())
     }
 }

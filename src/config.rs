@@ -13,6 +13,7 @@ pub use crate::lint_config::*;
 use crate::{
     error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
     fs::{resolve_path, resolve_path_relative, Check},
+    installation_variables::MAKEPKG_CONFIG_PATH,
     pkgbuild::{Options, Package, Pkgbuild, Source},
     raw::RawConfig,
 };
@@ -184,6 +185,10 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn config_file() -> &'static Path {
+        MAKEPKG_CONFIG_PATH.as_ref()
+    }
+
     pub fn new() -> Result<Self> {
         Config::load(None)
     }
@@ -206,7 +211,7 @@ impl Config {
             load_local = false;
             PathBuf::from(&config)
         } else {
-            Path::new("/etc/makepkg.conf").to_path_buf()
+            Self::config_file().to_path_buf()
         };
 
         Check::new(Context::ReadConfig).file().check(&main_config)?;

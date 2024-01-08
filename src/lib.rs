@@ -25,6 +25,7 @@ mod util;
 
 pub mod config;
 pub mod error;
+mod installation_variables;
 pub mod pkgbuild;
 
 pub(crate) static TOOL_NAME: &str = env!("CARGO_PKG_NAME");
