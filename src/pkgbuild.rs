@@ -203,7 +203,7 @@ pub enum Fragment {
 impl Display for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Fragment::Revision(v) => write!(f, "revission={}", v),
+            Fragment::Revision(v) => write!(f, "revision={}", v),
             Fragment::Branch(v) => write!(f, "branch={}", v),
             Fragment::Commit(v) => write!(f, "commit={}", v),
             Fragment::Tag(v) => write!(f, "tag={}", v),
@@ -224,6 +224,17 @@ impl FromStr for Fragment {
         };
 
         Ok(frag)
+    }
+}
+
+impl Fragment {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Fragment::Revision(_) => "revision",
+            Fragment::Branch(_) => "branch",
+            Fragment::Commit(_) => "commit",
+            Fragment::Tag(_) => "tag",
+        }
     }
 }
 
@@ -284,6 +295,7 @@ impl Source {
                 };
 
                 let (url, fragment) = match url.split_once('#') {
+                    // TODO error on invalid fragment
                     Some((url, fragment)) => (url, fragment.parse().ok()),
                     None => (url, None),
                 };
