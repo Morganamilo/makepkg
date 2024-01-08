@@ -11,7 +11,7 @@ pub struct Options {
     pub verify_source: bool,
     pub repackage: bool,
     pub no_build: bool,
-    pub force: bool,
+    pub recreate_package: bool,
     pub check: bool,
     pub no_check: bool,
     pub no_archive: bool,

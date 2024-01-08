@@ -119,7 +119,7 @@ impl Makepkg {
     }
 
     pub fn err_if_srcpkg_built(&self, options: &Options, pkgbuild: &Pkgbuild) -> Result<()> {
-        if !options.force && self.is_srcpkg_built(pkgbuild)? {
+        if !options.recreate_package && self.is_srcpkg_built(pkgbuild)? {
             return Err(AlreadyBuiltError {
                 kind: PackageKind::Source,
                 pkgbase: pkgbuild.pkgbase.clone(),
@@ -129,7 +129,7 @@ impl Makepkg {
         Ok(())
     }
     pub fn err_if_built(&self, options: &Options, pkgbuild: &Pkgbuild) -> Result<()> {
-        if !options.force && self.is_pkg_built(pkgbuild)? {
+        if !options.recreate_package && self.is_pkg_built(pkgbuild)? {
             return Err(AlreadyBuiltError {
                 kind: PackageKind::Package,
                 pkgbase: pkgbuild.pkgbase.clone(),
