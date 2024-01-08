@@ -336,13 +336,10 @@ impl Makepkg {
             Context::GeneratePackageFile(".PKGINFO".into()),
         )?;
 
-        let fakeroot = String::from_utf8(fakeroot.stdout).map_err(|e| {
-            CommandError::utf8(
-                e,
-                &fakerootcmd,
-                Context::GeneratePackageFile(".PKGINFO".into()),
-            )
-        })?;
+        let fakeroot = String::from_utf8(fakeroot.stdout).cmd_context(
+            &fakerootcmd,
+            Context::GeneratePackageFile(".PKGINFO".into()),
+        )?;
 
         writeln!(
             file,
