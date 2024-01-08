@@ -64,7 +64,7 @@ impl Makepkg {
         while running > 0 || !sources.is_empty() {
             while running < max_downloads && !sources.is_empty() {
                 if let Some(source) = sources.pop() {
-                    let curl = self.make_payload(&dirs, source)?;
+                    let curl = self.make_payload(dirs, source)?;
                     self.event(Event::Downloading(source.file_name().to_string()));
                     let handle = curlm.add2(curl)?;
                     handles.push(handle);
@@ -119,7 +119,7 @@ impl Makepkg {
             source: source.clone(),
             err: Ok(()),
         });
-        curl_set_ops(&mut curl, &source)?;
+        curl_set_ops(&mut curl, source)?;
         Ok(curl)
     }
 }
@@ -135,8 +135,7 @@ fn handle_messages(curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
                     context.err = Err(e.into());
                     return;
                 }
-
-                if response < 200 || response > 299 {
+                if !(200..300).contains(&response) {
                     context.err =
                         Err(DownloadError::Status(context.source.clone(), response).into());
                     return;

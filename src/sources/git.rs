@@ -37,7 +37,7 @@ impl Makepkg {
                 .arg(path)
                 .env("GIT_TERMINAL_PROMPT", "0");
             let status = command.status();
-            status.download_context(&source, &command, Context::None)?;
+            status.download_context(source, &command, Context::None)?;
         } else if !options.holdver {
             let mut command = Command::new("git");
             command
@@ -46,9 +46,9 @@ impl Makepkg {
                 .arg("remote.origin.url")
                 .current_dir(dirs.download_path(source));
             let remote_url = command.output();
-            let remote_url = remote_url.download_context(&source, &command, Context::None)?;
+            let remote_url = remote_url.download_context(source, &command, Context::None)?;
             let remote_url = String::from_utf8(remote_url.stdout)
-                .download_context(&source, &command, Context::None)?
+                .download_context(source, &command, Context::None)?
                 .trim()
                 .to_string();
 
@@ -69,7 +69,7 @@ impl Makepkg {
                 .current_dir(dirs.download_path(source));
             command
                 .status()
-                .download_context(&source, &command, Context::None)?;
+                .download_context(source, &command, Context::None)?;
         }
 
         Ok(())
@@ -88,7 +88,7 @@ impl Makepkg {
                 .arg("fetch")
                 .current_dir(&srcpath)
                 .status()
-                .download_context(&source, &command, Context::None)?;
+                .download_context(source, &command, Context::None)?;
         } else {
             let mut command = Command::new("git");
             command
@@ -100,7 +100,7 @@ impl Makepkg {
                 .current_dir(&dirs.srcdir)
                 .env("GIT_TERMINAL_PROMPT", "0")
                 .status()
-                .download_context(&source, &command, Context::None)?;
+                .download_context(source, &command, Context::None)?;
         }
 
         match &source.fragment {
@@ -127,9 +127,9 @@ impl Makepkg {
                 .arg(&srcpath);
             let tagname = command
                 .output()
-                .download_context(&source, &command, Context::None)?;
+                .download_context(source, &command, Context::None)?;
             let tagname = String::from_utf8(tagname.stdout)
-                .download_context(&source, &command, Context::None)?
+                .download_context(source, &command, Context::None)?
                 .trim()
                 .to_string();
 
@@ -155,7 +155,7 @@ impl Makepkg {
                 .arg("--")
                 .current_dir(&srcpath)
                 .status()
-                .download_context(&source, &command, Context::None)?;
+                .download_context(source, &command, Context::None)?;
         }
 
         Ok(())

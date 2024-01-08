@@ -66,7 +66,7 @@ impl Makepkg {
             let dest = pkgdir.join(".INSTALL");
             self.event(Event::AddingFileTopackage(install.to_string()));
             let install = dirs.startdir.join(install);
-            copy(&install, &dest, Context::CreatePackage)?;
+            copy(install, &dest, Context::CreatePackage)?;
             std::fs::set_permissions(&dest, PermissionsExt::from_mode(0o644))
                 .context(Context::CreatePackage, IOContext::Chmod(dest))?;
         }
@@ -75,14 +75,14 @@ impl Makepkg {
             self.event(Event::AddingFileTopackage(changelog.to_string()));
             let changelog = dirs.startdir.join(changelog);
             let dest = pkgdir.join(".CHANGELOG");
-            copy(&changelog, &dest, Context::CreatePackage)?;
+            copy(changelog, &dest, Context::CreatePackage)?;
             std::fs::set_permissions(&dest, PermissionsExt::from_mode(0o644))
                 .context(Context::CreatePackage, IOContext::Chmod(dest))?;
         }
 
         for file in walkdir::WalkDir::new(&pkgdir) {
             let file = file.context(Context::CreatePackage, IOContext::ReadDir(pkgdir.clone()))?;
-            set_time(&file.path(), self.config.source_date_epoch)?;
+            set_time(file.path(), self.config.source_date_epoch)?;
         }
 
         self.generate_mtree(dirs, pkg)?;
@@ -104,7 +104,7 @@ impl Makepkg {
         let mtree = pkgdir.join(".MTREE");
         let mut file = File::options();
         file.create(true).write(true).truncate(true);
-        let mtree = open(&file, &mtree, Context::GeneratePackageFile(".MTREE".into()))?;
+        let mtree = open(&file, mtree, Context::GeneratePackageFile(".MTREE".into()))?;
 
         let mut tarcmd = Command::new("bsdtar");
         self.fakeroot_env(&mut tarcmd)?;
@@ -198,7 +198,7 @@ impl Makepkg {
 
         let mut file = File::options();
         file.create(true).write(true).truncate(true);
-        let pkgfile = open(&file, &pkgfile, Context::CreatePackage)?;
+        let pkgfile = open(&file, pkgfile, Context::CreatePackage)?;
 
         let mut tarcmd = Command::new("bsdtar");
         self.fakeroot_env(&mut tarcmd)?;
@@ -393,7 +393,7 @@ impl Makepkg {
         Ok(())
     }
 
-    fn write_kvs<'a, W, S, I>(&self, p: &Path, w: &mut W, key: &str, val: I) -> Result<()>
+    fn write_kvs<W, S, I>(&self, p: &Path, w: &mut W, key: &str, val: I) -> Result<()>
     where
         W: Write,
         S: AsRef<str>,
@@ -442,10 +442,10 @@ impl Makepkg {
         let mut files = Vec::new();
         let mut filesnull = Vec::new();
 
-        for file in walkdir::WalkDir::new(&pkgdir) {
+        for file in walkdir::WalkDir::new(pkgdir) {
             let file = file.context(Context::GetPackageFiles, IOContext::ReadDir(pkgdir.into()))?;
 
-            let path = file.path().strip_prefix(&pkgdir).unwrap();
+            let path = file.path().strip_prefix(pkgdir).unwrap();
             if path.is_empty() {
                 continue;
             }
@@ -463,7 +463,7 @@ impl Makepkg {
         Ok(filesnull)
     }
 
-    fn compress<'a>(&'a self) -> Result<&'a [String]> {
+    fn compress(&self) -> Result<&[String]> {
         let c = self.config();
 
         let flags = match c.pkgext.as_str() {

@@ -446,7 +446,7 @@ impl Pkgbuild {
             Pkgbuild::set_var(path, "pkgrel", "1")?;
         }
 
-        self.pkgver = pkgver.into();
+        self.pkgver = pkgver;
         Pkgbuild::set_var(path, "pkgver", &self.pkgver)?;
         Ok(())
     }
@@ -465,13 +465,13 @@ impl Pkgbuild {
                 edited.push_str("pkgver=");
                 edited.push_str(val);
                 if let Some((_, rest)) = split {
-                    edited.push_str(" ");
+                    edited.push(' ');
                     edited.push_str(rest);
                 }
             } else {
                 edited.push_str(line);
             }
-            edited.push_str("\n");
+            edited.push('\n');
         }
 
         std::fs::write(path, edited).context(

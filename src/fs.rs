@@ -60,7 +60,7 @@ impl Check {
 
 pub fn resolve_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let cwd = current_dir()?;
-    Ok(resolve_path_relative(path, &cwd))
+    Ok(resolve_path_relative(path, cwd))
 }
 
 pub fn open<P: AsRef<Path>>(options: &OpenOptions, path: P, context: Context) -> Result<File> {

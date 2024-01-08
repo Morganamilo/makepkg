@@ -38,7 +38,7 @@ impl Makepkg {
             return Ok(());
         }
 
-        let dirs = self.pkgbuild_dirs(&pkgbuild)?;
+        let dirs = self.pkgbuild_dirs(pkgbuild)?;
         let pkgver = self.run_function_internal(
             options,
             &dirs,
@@ -57,7 +57,7 @@ impl Makepkg {
         pkgbuild: &Pkgbuild,
         function: Function,
     ) -> Result<()> {
-        let dirs = self.pkgbuild_dirs(&pkgbuild)?;
+        let dirs = self.pkgbuild_dirs(pkgbuild)?;
 
         if !pkgbuild.has_function(function) {
             return Ok(());
@@ -131,7 +131,7 @@ impl Makepkg {
             .arg("-")
             .arg("run")
             .arg(&dirs.pkgbuild)
-            .arg(function.to_string())
+            .arg(function)
             .arg(workingdir)
             .env("startdir", &dirs.startdir)
             .env("srcdir", &dirs.srcdir)
@@ -139,7 +139,7 @@ impl Makepkg {
                 "pkgdir",
                 &dirs
                     .pkgdir
-                    .join(pkgname.unwrap_or(&pkgbuild.pkgbase.as_str())),
+                    .join(pkgname.unwrap_or(pkgbuild.pkgbase.as_str())),
             )
             .current_dir(&dirs.startdir)
             .stdin(Stdio::piped());
@@ -313,7 +313,7 @@ impl Makepkg {
         let mut stdout = child.stdout.take().unwrap();
         let n = stdout.read(&mut key).unwrap();
         let key = std::str::from_utf8(&key[0..n]).unwrap();
-        let key = key.split_once(":").unwrap().0.to_string();
+        let key = key.split_once(':').unwrap().0.to_string();
         let ret = key.clone();
 
         let newfakeroot = FakeRoot { key, child };

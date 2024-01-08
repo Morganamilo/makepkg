@@ -190,15 +190,11 @@ impl Config {
         configd.as_mut_os_string().push(".d");
         conf_files.push(main_config.to_path_buf().into_os_string());
 
-        if let Ok(dir) = read_dir(configd) {
-            for file in dir {
-                if let Ok(file) = file {
-                    if file.path().extension() == Some(OsStr::new(".conf"))
-                        && file.file_type().map(|t| !t.is_dir()).unwrap_or(false)
-                    {
-                        conf_files.push(file.file_name());
-                    }
-                }
+        for file in read_dir(configd).into_iter().flatten().flatten() {
+            if file.path().extension() == Some(OsStr::new(".conf"))
+                && file.file_type().map(|t| !t.is_dir()).unwrap_or(false)
+            {
+                conf_files.push(file.file_name());
             }
         }
 

@@ -157,14 +157,14 @@ impl Makepkg {
         for source in all_sources {
             let path = dirs.download_path(source);
 
-            if let Some(tool) = self.get_vcs_tool(&source) {
+            if let Some(tool) = self.get_vcs_tool(source) {
                 vcs_downloads.entry(tool).or_default().push(source);
             } else if path.exists() {
                 self.event(Event::FoundSource(source.file_name().to_string()));
                 continue;
             } else if !source.is_download() {
                 return Err(DownloadError::SourceMissing(source.clone()).into());
-            } else if let Some(tool) = self.get_download_tool(&source) {
+            } else if let Some(tool) = self.get_download_tool(source) {
                 downloads.entry(tool).or_default().push(source);
             } else {
                 return Err(DownloadError::UnknownProtocol(source.clone()).into());

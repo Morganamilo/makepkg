@@ -19,7 +19,7 @@ pub(crate) trait CommandErrorExt<T>: Sized {
         cmd: &Command,
         context: Context,
     ) -> StdResult<T, DownloadError> {
-        self.cmd_context(&cmd, context)
+        self.cmd_context(cmd, context)
             .map_err(|e| DownloadError::Command(source.clone(), e))
     }
 }

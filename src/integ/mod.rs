@@ -12,7 +12,7 @@ use sha2::{Sha224, Sha256, Sha512};
 use crate::callback::{Event, LogLevel, LogMessage, SigFailed, SigFailedKind};
 use crate::config::PkgbuildDirs;
 use crate::error::{
-    CommandError, Context, Error, IOContext, IOErrorExt, IntegError, Result, CommandErrorKind,
+    CommandError, CommandErrorKind, Context, Error, IOContext, IOErrorExt, IntegError, Result,
 };
 use crate::fs::open;
 use crate::options::Options;
@@ -61,7 +61,7 @@ impl Makepkg {
     pub fn check_signatures(&self, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
         self.event(Event::VerifyingSignatures);
         let mut gpg =
-            gpgme::Context::from_protocol(Protocol::OpenPgp).map_err(|e| IntegError::Gpgme(e))?;
+            gpgme::Context::from_protocol(Protocol::OpenPgp).map_err(IntegError::Gpgme)?;
         let mut ok = true;
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
 
@@ -113,14 +113,12 @@ impl Makepkg {
                 .find(|s| s.file_name() == file)
                 .ok_or_else(|| IntegError::MissingFileForSig(source.file_name().to_string()))?;
 
-            let sig = dirs.download_path(&source);
+            let sig = dirs.download_path(source);
             let data = dirs.download_path(source_file);
             let sig = open(File::options().read(true), sig, Context::IntegrityCheck)?;
             let data = open(File::options().read(true), data, Context::IntegrityCheck)?;
 
-            let res = gpg
-                .verify_detached(sig, data)
-                .map_err(|e| IntegError::Gpgme(e))?;
+            let res = gpg.verify_detached(sig, data).map_err(IntegError::Gpgme)?;
             ok &= self.process_sig(source_file, pkgbuild, &res)?;
         }
 
@@ -155,9 +153,7 @@ impl Makepkg {
                     self.event(SigFailed::new(file, fingerprint, SigFailedKind::Expired).into());
                 } else {
                     let d = err.to_string();
-                    self.event(
-                        SigFailed::new(file, fingerprint, SigFailedKind::Other(d).into()).into(),
-                    );
+                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Other(d)).into());
                 }
                 continue;
             }
@@ -206,7 +202,7 @@ impl Makepkg {
 
             for (n, source) in source.values.iter().enumerate() {
                 ok &= self.check_checksums_one_file(
-                    dirs, source, n, md5, &sha1, &sha224, &sha256, &sha512, &b2,
+                    dirs, source, n, md5, sha1, sha224, sha256, sha512, b2,
                 )?;
             }
         }
@@ -439,7 +435,7 @@ fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String> {
 
     loop {
         let n = match r.read(&mut buffer) {
-            Ok(n) if n == 0 => break,
+            Ok(0) => break,
             Ok(n) => n,
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             e => IOErrorExt::context(

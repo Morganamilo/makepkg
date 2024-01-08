@@ -14,9 +14,9 @@ impl Makepkg {
         dirs: &PkgbuildDirs,
         downloads: &BTreeMap<&DownloadAgent, Vec<&Source>>,
     ) -> Result<()> {
-        Ok(for (agent, sources) in downloads {
+        for (agent, sources) in downloads {
             for source in sources {
-                let final_path = dirs.download_path(&source).display().to_string();
+                let final_path = dirs.download_path(source).display().to_string();
                 let part = format!("{}.part", final_path);
                 let url = source.url.as_str();
                 let url = url.trim_start_matches("scp://");
@@ -37,13 +37,14 @@ impl Makepkg {
                     .args(&args)
                     .current_dir(&dirs.srcdest)
                     .status()
-                    .download_context(&source, &command, Context::None)?;
+                    .download_context(source, &command, Context::None)?;
 
                 rename(&part, &final_path).context(
                     Context::RetrieveSources,
                     IOContext::Rename(part.to_string(), final_path.to_string()),
                 )?;
             }
-        })
+        };
+        Ok(())
     }
 }
