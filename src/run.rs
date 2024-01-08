@@ -199,9 +199,9 @@ impl Makepkg {
             reader1 = Some(read1);
         }
 
-        let mut child = command.spawn().map_err(|e| {
-            CommandError::exec(e, &command, Context::RunFunction(function.to_string()))
-        })?;
+        let mut child = command
+            .spawn()
+            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
         if let Some((fd1, fd2)) = fds {
             let _ = close(fd1);
@@ -210,9 +210,9 @@ impl Makepkg {
 
         let mut stdin = child.stdin.take().unwrap();
 
-        stdin.write_all(PKGBUILD_SCRIPT.as_bytes()).map_err(|e| {
-            CommandError::exec(e, &command, Context::RunFunction(function.to_string()))
-        })?;
+        stdin
+            .write_all(PKGBUILD_SCRIPT.as_bytes())
+            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
         drop(stdin);
 
@@ -238,21 +238,15 @@ impl Makepkg {
                                     output.extend(&buffer[..n]);
                                 }
                                 if let Some(log) = &mut logfile {
-                                    log.write_all(&buffer[..n]).map_err(|e| {
-                                        CommandError::exec(
-                                            e,
-                                            &command,
-                                            Context::RunFunction(function.to_string()),
-                                        )
-                                    })?;
-                                }
-                                stdout.write_all(&buffer[..n]).map_err(|e| {
-                                    CommandError::exec(
-                                        e,
+                                    log.write_all(&buffer[..n]).cmd_context(
                                         &command,
                                         Context::RunFunction(function.to_string()),
-                                    )
-                                })?;
+                                    )?;
+                                }
+                                stdout.write_all(&buffer[..n]).cmd_context(
+                                    &command,
+                                    Context::RunFunction(function.to_string()),
+                                )?;
                             }
                             Err(e) if e.kind() == ErrorKind::WouldBlock => break,
                             Err(e) => {
@@ -273,23 +267,12 @@ impl Makepkg {
             }
         }
 
-        let status = child.wait().map_err(|e| {
-            CommandError::exec(e, &command, Context::RunFunction(function.to_string()))
-        })?;
+        child
+            .wait()
+            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
-        if !status.success() {
-            let code = status.code();
-            return Err(CommandError::exit(
-                &command,
-                code,
-                Context::RunFunction(function.to_string()),
-            )
-            .into());
-        }
-
-        let output = String::from_utf8(output).map_err(|e| {
-            CommandError::utf8(e, &command, Context::RunFunction(function.to_string()))
-        })?;
+        let output = String::from_utf8(output)
+            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
         Ok(output.trim().to_string())
     }

@@ -60,12 +60,8 @@ impl CommandErrorExt<Output> for io::Result<Output> {
     }
 }
 
-impl CommandErrorExt<io::Error> for io::Result<io::Error> {
-    fn cmd_context(
-        self,
-        command: &Command,
-        context: Context,
-    ) -> StdResult<io::Error, CommandError> {
+impl CommandErrorExt<()> for io::Result<()> {
+    fn cmd_context(self, command: &Command, context: Context) -> StdResult<(), CommandError> {
         self.map_err(|e| CommandError::exec(e, command, context))
     }
 }
