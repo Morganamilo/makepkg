@@ -9,15 +9,13 @@ use std::{
 
 use nix::sys::stat::{umask, Mode};
 
+pub use crate::lint_config::*;
 use crate::{
     error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
     fs::{resolve_path, resolve_path_relative, Check},
-    pkgbuild::{Pkgbuild, Source},
+    pkgbuild::{Options, Pkgbuild, Source},
     raw::RawConfig,
 };
-
-pub use crate::lint_config::*;
-pub use crate::pkgbuild::Options;
 
 #[derive(Debug, Default, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct VCSClient {
@@ -73,13 +71,25 @@ impl FromStr for DownloadAgent {
 
 #[derive(Debug, Default)]
 pub struct PkgbuildDirs {
+    /// The directory the `PKGBUILD` resides in.
     pub startdir: PathBuf,
+    /// Full path to the `PKGBUILD` file.
     pub pkgbuild: PathBuf,
+    /// Directory containing `SRCDIR` and `PKGDIR`.
+    /// If `BUILDDIR` is not set this will be the same as `STARTDIR`.
     pub builddir: PathBuf,
+    /// The directory that sources are extracted to for the actual build to work with.
+    /// This will be `STARTDIR/src`, or if `BUILDDIR` is set, `BUILDDIR/PKGBASE/src`.
     pub srcdir: PathBuf,
+    /// The directory that the build will places files into to be packages.
+    /// Each package in the `PKGBUILD` writes to `PKGDIR/PKGNAME`.
+    /// This will be `STARTDIR/pkg`, or if `BUILDDIR` is set, `BUILDDIR/PKGBASE/pkg`.
     pub pkgdir: PathBuf,
-    pub pkgdest: PathBuf,
+    /// The directory sources are downloaded to.
     pub srcdest: PathBuf,
+    /// The directory the build package is created in.
+    pub pkgdest: PathBuf,
+    /// The directory built source packages are created in.
     pub srcpkgdest: PathBuf,
 }
 
