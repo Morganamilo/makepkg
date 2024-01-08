@@ -221,12 +221,8 @@ impl Makepkg {
         if reader1.is_some() {
             loop {
                 let mut done = 0;
-
-                for (i, reader) in [&mut reader1, &mut reader2]
-                    .into_iter()
-                    .flatten()
-                    .enumerate()
-                {
+                let readers = [&mut reader1, &mut reader2];
+                for (i, reader) in readers.into_iter().flatten().enumerate() {
                     loop {
                         match reader.read(&mut buffer) {
                             Ok(0) => {
