@@ -768,7 +768,7 @@ mod test {
         let mut options = crate::options::Options::default();
         options.clean_build = true;
         options.recreate_package = true;
-        let mut pkgbuild = Pkgbuild::from_path("/home/morganamilo/aur/paru-git").unwrap();
+        let mut pkgbuild = Pkgbuild::from_path("../makepkg-test").unwrap();
         let res = config.build(&options, &mut pkgbuild);
 
         match res {
