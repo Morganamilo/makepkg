@@ -60,8 +60,8 @@ impl Makepkg {
             }
 
             for source in &source.values {
-                match source.protocol() {
-                    Some(proto) if is_vcs_proto(proto) => self.extract_vcs(&dirs, source)?,
+                match source.vcs_proto() {
+                    Some(_) => self.extract_vcs(&dirs, source)?,
                     _ => self.extract_file(&dirs, source, &pkgbuild.noextract)?,
                 }
             }
