@@ -32,7 +32,7 @@ impl Makepkg {
         }
     }
 
-    pub fn download_vcs(
+    pub(crate) fn download_vcs(
         &self,
         dirs: &PkgbuildDirs,
         options: &Options,

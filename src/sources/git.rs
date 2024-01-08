@@ -10,7 +10,7 @@ use crate::{
 };
 
 impl Makepkg {
-    pub fn download_git(
+    pub(crate) fn download_git(
         &self,
         dirs: &PkgbuildDirs,
         options: &Options,
@@ -73,7 +73,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn extract_git(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
+    pub(crate) fn extract_git(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
         let mut gitref = "origin/HEAD".to_string();
         let mut updating = false;
         let srcpath = dirs.srcdir.join(source.file_name());

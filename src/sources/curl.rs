@@ -51,7 +51,7 @@ impl<'a> Handler for Handle<'a> {
 }
 
 impl Makepkg {
-    pub fn download_curl_sources(
+    pub(crate) fn download_curl_sources(
         &self,
         dirs: &PkgbuildDirs,
         mut sources: Vec<&Source>,

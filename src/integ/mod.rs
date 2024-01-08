@@ -80,7 +80,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn check_sigs_one_arch(
+    fn check_sigs_one_arch(
         &self,
         dirs: &PkgbuildDirs,
         gpg: &mut gpgme::Context,
@@ -127,7 +127,7 @@ impl Makepkg {
         Ok(ok)
     }
 
-    pub fn process_sig(
+    fn process_sig(
         &self,
         source: &Source,
         pkgbuild: &Pkgbuild,
@@ -183,7 +183,12 @@ impl Makepkg {
         Ok(ok)
     }
 
-    fn check_checksums(&self, dirs: &PkgbuildDirs, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
+    pub fn check_checksums(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        all: bool,
+    ) -> Result<()> {
         self.event(Event::VerifyingChecksums);
 
         let mut ok = true;
@@ -423,12 +428,12 @@ fn get_sum_array<'a>(sums: &'a ArchVecs<String>, arch: &Option<String>) -> &'a [
         .unwrap_or_default()
 }
 
-pub fn hash_file<D: Digest>(path: &Path) -> Result<String> {
+pub(crate) fn hash_file<D: Digest>(path: &Path) -> Result<String> {
     let mut file = open(File::options().read(true), path, Context::IntegrityCheck)?;
     hash::<D, _>(path, &mut file)
 }
 
-pub fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String> {
+fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String> {
     let mut buffer = vec![0; 1024];
     let mut digest = D::new();
 

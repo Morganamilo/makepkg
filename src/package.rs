@@ -4,9 +4,7 @@ use sha2::Sha256;
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{
-        CommandError, CommandErrorExt, Context, IOContext, IOErrorExt, LintError, LintKind, Result,
-    },
+    error::{CommandErrorExt, Context, IOContext, IOErrorExt, LintError, LintKind, Result},
     fs::{copy, open, set_time},
     integ::hash_file,
     options::Options,
@@ -98,7 +96,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn generate_mtree(&self, dirs: &PkgbuildDirs, pkg: &Package) -> Result<()> {
+    fn generate_mtree(&self, dirs: &PkgbuildDirs, pkg: &Package) -> Result<()> {
         self.event(Event::GeneratingPackageFile(".MTREE".to_string()));
         let pkgdir = dirs.pkgdir.join(&pkg.pkgname);
         let files = self.package_files(&pkgdir)?;
@@ -155,7 +153,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn make_archive(
+    fn make_archive(
         &self,
         dirs: &PkgbuildDirs,
         pkgbuild: &Pkgbuild,
@@ -244,7 +242,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn generate_buildinfo(
+    fn generate_buildinfo(
         &self,
         dirs: &PkgbuildDirs,
         pkgbuild: &Pkgbuild,
@@ -309,7 +307,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn generate_pkginfo(
+    fn generate_pkginfo(
         &self,
         dirs: &PkgbuildDirs,
         pkgbuild: &Pkgbuild,
