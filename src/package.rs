@@ -125,7 +125,12 @@ impl Makepkg {
                 "LD_LIBRARY_PATH",
                 "/usr/lib/libfakeroot:/usr/lib64/libfakeroot:/usr/lib32/libfakeroot",
             )
+            .env(
+                "DYLD_FALLBACK_LIBRARY_PATH",
+                "/opt/pacman/usr/lib/libfakeroot:/opt/pacman/usr/lib64/libfakeroot:/opt/pacman/usr/lib32/libfakeroot",
+            )
             .env("LD_PRELOAD", "libfakeroot.so")
+            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib")
             .env("FAKEROOTKEY", key)
             .env("LANG", "C")
             .current_dir(&pkgdir)
@@ -223,7 +228,12 @@ impl Makepkg {
                 "LD_LIBRARY_PATH",
                 "/usr/lib/libfakeroot:/usr/lib64/libfakeroot:/usr/lib32/libfakeroot",
             )
+            .env(
+                "DYLD_FALLBACK_LIBRARY_PATH",
+                "/opt/pacman/usr/lib/libfakeroot:/opt/pacman/usr/lib64/libfakeroot:/opt/pacman/usr/lib32/libfakeroot",
+            )
             .env("LD_PRELOAD", "libfakeroot.so")
+            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib")
             .env("FAKEROOTKEY", key)
             .env("LANG", "C")
             .current_dir(&pkgdir)
