@@ -1,7 +1,12 @@
 use std::process::{Child, ExitStatus, Output};
 use std::{
-    fmt::Display, io, iter, path::PathBuf, process::Command, result::Result as StdResult,
-    string::FromUtf8Error, time::SystemTimeError,
+    fmt::Display,
+    io, iter,
+    path::{PathBuf, StripPrefixError},
+    process::Command,
+    result::Result as StdResult,
+    string::FromUtf8Error,
+    time::SystemTimeError,
 };
 
 use crate::package::PackageKind;
@@ -88,6 +93,18 @@ impl<T> IOErrorExt<T> for nix::Result<T> {
 impl<T> IOErrorExt<T> for io::Result<T> {
     fn context(self, context: Context, iocontext: IOContext) -> StdResult<T, IOError> {
         self.map_err(|e| IOError::new(context, iocontext, e))
+    }
+}
+
+impl<T> IOErrorExt<T> for StdResult<T, StripPrefixError> {
+    fn context(self, context: Context, iocontext: IOContext) -> StdResult<T, IOError> {
+        self.map_err(|e| {
+            IOError::new(
+                context,
+                iocontext,
+                io::Error::new(io::ErrorKind::NotFound, e),
+            )
+        })
     }
 }
 
@@ -484,6 +501,7 @@ impl LintError {
 pub enum DownloadError {
     SourceMissing(Source),
     UnknownProtocol(Source),
+    UnknownVCSClient(Source),
     Curl(curl::Error),
     CurlMulti(curl::MultiError),
     Status(Source, u32),
@@ -499,6 +517,7 @@ impl Display for DownloadError {
         match self {
             DownloadError::SourceMissing(s) => write!(f, "can't find source {}", s),
             DownloadError::UnknownProtocol(s) => write!(f, "unknown protocol {}", s),
+            DownloadError::UnknownVCSClient(s) => write!(f, "unknown VCS client {}", s),
             DownloadError::Curl(e) => write!(f, "curl: {}", e),
             DownloadError::CurlMulti(e) => write!(f, "curl: {}", e),
             DownloadError::Status(s, code) => write!(f, "{} (status {})", s.file_name(), code),
