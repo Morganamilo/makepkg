@@ -256,7 +256,8 @@ pub enum IOContext {
     Utimensat(PathBuf),
     RemoveTempfile(PathBuf),
     Remove(PathBuf),
-    Link(PathBuf, PathBuf),
+    MakeLink(PathBuf, PathBuf),
+    ReadLink(PathBuf),
     Copy(PathBuf, PathBuf),
     WriteProcess(String),
     Stat(PathBuf),
@@ -286,7 +287,10 @@ impl Display for IOContext {
             IOContext::Utimensat(p) => write!(f, "failed to change access time: {}", p.display()),
             IOContext::RemoveTempfile(p) => write!(f, "can't remove tempfile {}", p.display()),
             IOContext::Remove(p) => write!(f, "rm {}", p.display()),
-            IOContext::Link(src, dst) => write!(f, "link {} -> {}", dst.display(), src.display()),
+            IOContext::MakeLink(src, dst) => {
+                write!(f, "link {} -> {}", dst.display(), src.display())
+            }
+            IOContext::ReadLink(p) => write!(f, "readlink {}", p.display()),
             IOContext::Copy(src, dst) => write!(f, "copy {} -> {}", src.display(), dst.display()),
             IOContext::WriteProcess(name) => write!(f, "couldn't write to {}", name),
             IOContext::Stat(p) => write!(f, "stat {}", p.display()),
