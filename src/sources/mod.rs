@@ -160,7 +160,7 @@ impl Makepkg {
             } else if path.exists() {
                 self.event(Event::FoundSource(source.file_name().to_string()));
                 continue;
-            } else if !source.is_download() {
+            } else if !source.is_remote() {
                 return Err(DownloadError::SourceMissing(source.clone()).into());
             } else if let Some(tool) = self.get_download_tool(source) {
                 downloads.entry(tool).or_default().push(source);

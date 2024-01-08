@@ -244,7 +244,7 @@ impl Fragment {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Source {
-    pub filename: Option<String>,
+    pub filename_override: Option<String>,
     pub proto_prefix: Option<String>,
     pub url: String,
     pub fragment: Option<Fragment>,
@@ -253,7 +253,7 @@ pub struct Source {
 
 impl Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(filename) = &self.filename {
+        if let Some(filename) = &self.filename_override {
             f.write_str(filename)?;
             f.write_str("::")?;
         }
@@ -304,7 +304,7 @@ impl Source {
                     None => (url, None),
                 };
                 return Source {
-                    filename: filename.map(|s| s.to_string()),
+                    filename_override: filename.map(|s| s.to_string()),
                     url: url.to_string(),
                     fragment,
                     query: query.map(|s| s.to_string()),
@@ -314,7 +314,7 @@ impl Source {
         }
 
         Source {
-            filename: filename.map(|s| s.to_string()),
+            filename_override: filename.map(|s| s.to_string()),
             url: url.to_string(),
             fragment: None,
             query: None,
@@ -328,12 +328,12 @@ impl Source {
             .or_else(|| self.url.split_once("://").map(|u| u.0))
     }
 
-    pub fn is_download(&self) -> bool {
+    pub fn is_remote(&self) -> bool {
         self.url.contains("://")
     }
 
     pub fn file_name(&self) -> &str {
-        let mut filename = if let Some(filename) = &self.filename {
+        let mut filename = if let Some(filename) = &self.filename_override {
             filename.as_str()
         } else {
             self.url.rsplit('/').next().unwrap()
@@ -485,10 +485,9 @@ impl Pkgbuild {
     pub fn from_path<P: Into<PathBuf>>(dir: P) -> Result<Self> {
         let dir = dir.into();
         let dir = resolve_path(Context::ReadPkgbuild, dir)?;
-        let pkgbuild_path = dir.join("PKGBUILD");
+        let pkgbuild_path = dir.join(Pkgbuild::file_name());
 
         Check::new(Context::ReadPkgbuild).dir().check(&dir)?;
-
         Check::new(Context::ReadPkgbuild)
             .file()
             .check(&pkgbuild_path)?;

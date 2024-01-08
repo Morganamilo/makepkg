@@ -105,7 +105,7 @@ impl PkgbuildDirs {
     /// This expands to [`srcdest`](`PkgbuildDirs::srcdest`)/[`filename`](`Source::file_name`) for remote
     /// sources and [`startdir`](`PkgbuildDirs::startdir`)/[`filename`](`Source::file_name`) for local sources.
     pub fn download_path(&self, source: &Source) -> PathBuf {
-        if source.is_download() {
+        if source.is_remote() {
             self.srcdest.join(source.file_name())
         } else {
             self.startdir.join(source.file_name())
