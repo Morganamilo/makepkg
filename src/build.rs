@@ -60,8 +60,8 @@ impl Makepkg {
             self.event(Event::RemovingPkgdir);
             rm_all(&dirs.pkgdir, Context::BuildPackage)?;
         }
-        for pkg in pkgbuild.pkgnames() {
-            mkdir(&dirs.pkgdir.join(pkg), Context::BuildPackage)?;
+        for pkg in pkgbuild.packages() {
+            mkdir(&dirs.pkgdir(pkg), Context::BuildPackage)?;
         }
 
         if !options.repackage {

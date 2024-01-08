@@ -1,4 +1,3 @@
-use gpgme::error::return_err;
 use std::{collections::BTreeMap, fmt::Display};
 
 use crate::error::DownloadError;

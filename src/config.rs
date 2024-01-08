@@ -13,7 +13,7 @@ pub use crate::lint_config::*;
 use crate::{
     error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
     fs::{resolve_path, resolve_path_relative, Check},
-    pkgbuild::{Options, Pkgbuild, Source},
+    pkgbuild::{Options, Package, Pkgbuild, Source},
     raw::RawConfig,
 };
 
@@ -75,7 +75,7 @@ impl FromStr for DownloadAgent {
 /// unless explicitly configured in [`Config`] to use other directories.
 ///
 /// This means each [`PkgbuildDirs`] is specific to the [`Config`] and [`Pkgbuild`] combination it was generated from.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PkgbuildDirs {
     /// The directory the [`Pkgbuild`] resides in.
     pub startdir: PathBuf,
@@ -100,12 +100,23 @@ pub struct PkgbuildDirs {
 }
 
 impl PkgbuildDirs {
+    /// Gets the path that a [`Source`] would be downloaded to.
+    ///
+    /// This expands to [`srcdest`](`PkgbuildDirs::srcdest`)/[`filename`](`Source::file_name`) for remote
+    /// sources and [`startdir`](`PkgbuildDirs::startdir`)/[`filename`](`Source::file_name`) for local sources.
     pub fn download_path(&self, source: &Source) -> PathBuf {
         if source.is_download() {
             self.srcdest.join(source.file_name())
         } else {
             self.startdir.join(source.file_name())
         }
+    }
+
+    /// Gets the pkgdir for the specific [`Package`].
+    ///
+    /// This expands to [`pkgdir`](`PkgbuildDirs::pkgdir`)/[`pkgname`](`Package::pkgname`).
+    pub fn pkgdir(&self, pkg: &Package) -> PathBuf {
+        self.pkgdir.join(&pkg.pkgname)
     }
 }
 
