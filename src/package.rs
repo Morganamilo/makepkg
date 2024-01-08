@@ -108,9 +108,8 @@ impl Makepkg {
         file.create(true).write(true).truncate(true);
         let mtree = open(&file, &mtree, Context::GeneratePackageFile(".MTREE".into()))?;
 
-        let key = self.fakeroot()?;
-
         let mut tarcmd = Command::new("bsdtar");
+        self.fakeroot_env(&mut tarcmd)?;
         tarcmd
             .arg("-cnf")
             .arg("-")
@@ -121,17 +120,6 @@ impl Makepkg {
             .arg("-")
             .arg("--exclude")
             .arg(".MTREE")
-            .env(
-                "LD_LIBRARY_PATH",
-                "/usr/lib/libfakeroot:/usr/lib64/libfakeroot:/usr/lib32/libfakeroot",
-            )
-            .env(
-                "DYLD_FALLBACK_LIBRARY_PATH",
-                "/opt/pacman/usr/lib/libfakeroot:/opt/pacman/usr/lib64/libfakeroot:/opt/pacman/usr/lib32/libfakeroot",
-            )
-            .env("LD_PRELOAD", "libfakeroot.so")
-            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib")
-            .env("FAKEROOTKEY", key)
             .env("LANG", "C")
             .current_dir(&pkgdir)
             .stdout(Stdio::piped())
@@ -214,9 +202,8 @@ impl Makepkg {
         file.create(true).write(true).truncate(true);
         let pkgfile = open(&file, &pkgfile, Context::CreatePackage)?;
 
-        let key = self.fakeroot()?;
-
         let mut tarcmd = Command::new("bsdtar");
+        self.fakeroot_env(&mut tarcmd)?;
         tarcmd
             .arg("--no-fflags")
             .arg("-cnf")
@@ -224,17 +211,6 @@ impl Makepkg {
             .arg("--null")
             .arg("--files-from")
             .arg("-")
-            .env(
-                "LD_LIBRARY_PATH",
-                "/usr/lib/libfakeroot:/usr/lib64/libfakeroot:/usr/lib32/libfakeroot",
-            )
-            .env(
-                "DYLD_FALLBACK_LIBRARY_PATH",
-                "/opt/pacman/usr/lib/libfakeroot:/opt/pacman/usr/lib64/libfakeroot:/opt/pacman/usr/lib32/libfakeroot",
-            )
-            .env("LD_PRELOAD", "libfakeroot.so")
-            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib")
-            .env("FAKEROOTKEY", key)
             .env("LANG", "C")
             .current_dir(&pkgdir)
             .stdout(Stdio::piped())
@@ -537,6 +513,23 @@ impl Makepkg {
             pkgbuild.version(),
         ));
 
+        Ok(())
+    }
+
+    pub(crate) fn fakeroot_env(&self, command: &mut Command) -> Result<()> {
+        let key = self.fakeroot()?;
+        command
+            .env(
+                "LD_LIBRARY_PATH",
+                "/usr/lib/libfakeroot:/usr/lib64/libfakeroot:/usr/lib32/libfakeroot",
+            )
+            .env(
+                "DYLD_FALLBACK_LIBRARY_PATH",
+                "/opt/pacman/usr/lib/libfakeroot:/opt/pacman/usr/lib64/libfakeroot:/opt/pacman/usr/lib32/libfakeroot",
+            )
+            .env("LD_PRELOAD", "libfakeroot.so")
+            .env("DYLD_INSERT_LIBRARIES", "libfakeroot.dylib")
+            .env("FAKEROOTKEY", key);
         Ok(())
     }
 }
