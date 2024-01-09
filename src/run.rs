@@ -154,7 +154,7 @@ impl Makepkg {
             command.env("PKGNAME", pkgname);
         }
 
-        let logfile = self.config.logdest.join(format!(
+        let logfile = dirs.logdest.join(format!(
             "{}-{}-{}-{}.log",
             pkgbuild.pkgbase,
             pkgbuild.version(),

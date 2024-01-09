@@ -98,6 +98,8 @@ pub struct PkgbuildDirs {
     pub pkgdest: PathBuf,
     /// The directory built source packages are created in.
     pub srcpkgdest: PathBuf,
+    /// The directory to write logfiles to. This is the same as [`startdir`](`PkgbuildDirs::startdir`) unless configured.
+    pub logdest: PathBuf,
 }
 
 impl PkgbuildDirs {
@@ -152,7 +154,7 @@ pub struct Config {
     pub doc_dirs: Vec<PathBuf>,
     pub purge_targets: Vec<PathBuf>,
     pub dbg_srcdir: PathBuf,
-    pub logdest: PathBuf,
+    pub logdest: Option<PathBuf>,
     pub packager: String,
     pub compress_none: Vec<String>,
     pub compress_gz: Vec<String>,
@@ -291,7 +293,7 @@ impl Config {
             config.srcpkgdest = Some(PathBuf::from(srcpkgdest));
         }
         if let Ok(logdest) = std::env::var("LOGDEST") {
-            config.logdest = logdest.into();
+            config.logdest = Some(logdest.into());
         }
         if let Ok(packager) = std::env::var("PACKAGER") {
             config.packager = packager;
@@ -348,6 +350,11 @@ impl Config {
             _ => startdir.clone(),
         };
 
+        let logdest = match &self.logdest {
+            Some(dir) => resolve_path_relative(dir, &startdir),
+            _ => startdir.clone(),
+        };
+
         let srcdir = builddir.join("src");
         let pkgdir = builddir.join("pkg");
 
@@ -371,6 +378,7 @@ impl Config {
             pkgdest,
             srcdest,
             srcpkgdest,
+            logdest,
         };
 
         Ok(dirs)
@@ -437,7 +445,7 @@ impl Config {
                 "PKGDEST" => self.pkgdest = Some(PathBuf::from(var.lint_string(lints))),
                 "SRCDEST" => self.srcdest = Some(PathBuf::from(var.lint_string(lints))),
                 "SRCPKGDEST" => self.srcpkgdest = Some(PathBuf::from(var.lint_string(lints))),
-                "LOGDEST" => self.logdest = var.lint_string(lints).into(),
+                "LOGDEST" => self.logdest = Some(var.lint_string(lints).into()),
                 "PACKAGER" => self.packager = var.lint_string(lints),
                 "COMPRESSGZ" => self.compress_gz = var.lint_array(lints),
                 "COMPRESSBZ2" => self.compress_bz2 = var.lint_array(lints),
