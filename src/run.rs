@@ -25,7 +25,7 @@ use crate::{
     Makepkg,
 };
 
-fn pipe(_command: &Command, function: &str) -> Result<(OwnedFd, OwnedFd)> {
+fn pipe(function: &str) -> Result<(OwnedFd, OwnedFd)> {
     let (r, w) =
         unistd::pipe().context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
     fcntl(r, FcntlArg::F_SETFL(OFlag::O_NONBLOCK))
@@ -179,7 +179,7 @@ impl Makepkg {
         let mut fds = None;
 
         if options.log || capture_output {
-            let (read1, write1) = pipe(&command, function)?;
+            let (read1, write1) = pipe(function)?;
             let read1 = File::from(read1);
 
             if !capture_output {
@@ -189,7 +189,7 @@ impl Makepkg {
                 fds = Some((write1.as_raw_fd(), write2.as_raw_fd()));
                 command.stderr(write2);
             } else {
-                let (read2, write2) = pipe(&command, function)?;
+                let (read2, write2) = pipe(function)?;
                 let read2 = File::from(read2);
                 fds = Some((write1.as_raw_fd(), write2.as_raw_fd()));
                 command.stderr(write2);
