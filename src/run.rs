@@ -254,7 +254,7 @@ impl Makepkg {
                                     &command,
                                     Context::RunFunction(function.to_string()),
                                 )
-                                .into())
+                                .into());
                             }
                         }
                     }

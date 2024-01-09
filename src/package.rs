@@ -1,3 +1,17 @@
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    fs::File,
+    io::Write,
+    os::{
+        unix::fs::MetadataExt,
+        unix::{ffi::OsStrExt, fs::PermissionsExt},
+    },
+    path::Path,
+    process::{Command, Stdio},
+    thread,
+};
+
 use nix::NixPath;
 use sha2::Sha256;
 
@@ -12,20 +26,6 @@ use crate::{
     pacman::buildinfo_installed,
     pkgbuild::{Package, Pkgbuild},
     FakeRoot, Makepkg,
-};
-
-use std::{
-    collections::HashSet,
-    fmt::Display,
-    fs::File,
-    io::Write,
-    os::{
-        unix::fs::MetadataExt,
-        unix::{ffi::OsStrExt, fs::PermissionsExt},
-    },
-    path::Path,
-    process::{Command, Stdio},
-    thread,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -481,7 +481,7 @@ impl Makepkg {
             ext => {
                 return Err(
                     LintError::config(vec![LintKind::InvalidPkgExt(ext.to_string())]).into(),
-                )
+                );
             }
         };
 
@@ -514,10 +514,10 @@ impl Makepkg {
 
     pub(crate) fn fakeroot_env(&self, command: &mut Command) -> Result<()> {
         let key = self.fakeroot()?;
-        #[cfg(not(os_family = "apple"))]
+        #[cfg(not(target_vendor = "apple"))]
         command.env("LD_LIBRARY_PATH", FAKEROOT_LIBDIRS);
         command.env("LD_PRELOAD", FakeRoot::library_name());
-        #[cfg(os_family = "apple")]
+        #[cfg(target_vendor = "apple")]
         command
             .env("DYLD_FALLBACK_LIBRARY_PATH", FAKEROOT_LIBDIRS)
             .env("DYLD_INSERT_LIBRARIES", FakeRoot::library_name());
