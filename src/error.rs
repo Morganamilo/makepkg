@@ -19,6 +19,34 @@ use crate::{
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub(crate) trait CommandOutputExt: Sized {
+    fn read(self, command: &Command, context: Context) -> StdResult<String, CommandError>;
+    fn download_read(
+        self,
+        source: &Source,
+        command: &Command,
+        context: Context,
+    ) -> StdResult<String, DownloadError> {
+        self.read(command, context)
+            .map_err(|e| DownloadError::Command(source.clone(), e))
+    }
+}
+
+impl CommandOutputExt for StdResult<Output, io::Error> {
+    fn read(self, command: &Command, context: Context) -> StdResult<String, CommandError> {
+        let output = self.cmd_context(command, context.clone())?;
+        let output = String::from_utf8(output.stdout).cmd_context(command, context)?;
+        Ok(output.trim().to_string())
+    }
+}
+
+impl CommandOutputExt for Vec<u8> {
+    fn read(self, command: &Command, context: Context) -> StdResult<String, CommandError> {
+        let output = String::from_utf8(self).cmd_context(command, context.clone())?;
+        Ok(output.trim().to_string())
+    }
+}
+
 pub(crate) trait CommandErrorExt<T>: Sized {
     fn cmd_context(self, command: &Command, context: Context) -> StdResult<T, CommandError>;
     fn download_context(

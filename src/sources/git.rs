@@ -3,7 +3,7 @@ use std::process::Command;
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{CommandErrorExt, Context, DownloadError, Result},
+    error::{CommandErrorExt, CommandOutputExt, Context, DownloadError, Result},
     pkgbuild::{Fragment, Source},
     sources::VCSKind,
     Makepkg, Options, TOOL_NAME,
@@ -45,12 +45,9 @@ impl Makepkg {
                 .arg("--get")
                 .arg("remote.origin.url")
                 .current_dir(dirs.download_path(source));
-            let remote_url = command.output();
-            let remote_url = remote_url.download_context(source, &command, Context::None)?;
-            let remote_url = String::from_utf8(remote_url.stdout)
-                .download_context(source, &command, Context::None)?
-                .trim()
-                .to_string();
+            let remote_url = command
+                .output()
+                .download_read(source, &command, Context::None)?;
 
             if remote_url.trim_end_matches(".git") != source.url.trim_end_matches(".git") {
                 return Err(
@@ -126,11 +123,7 @@ impl Makepkg {
                 .arg(&srcpath);
             let tagname = command
                 .output()
-                .download_context(source, &command, Context::None)?;
-            let tagname = String::from_utf8(tagname.stdout)
-                .download_context(source, &command, Context::None)?
-                .trim()
-                .to_string();
+                .download_read(source, &command, Context::None)?;
 
             if !tagname.is_empty() && tagname != gitref {
                 return Err(DownloadError::RefsDiffer(

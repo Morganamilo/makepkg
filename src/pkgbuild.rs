@@ -110,7 +110,7 @@ impl ArchVecs<String> {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArchVec<T> {
     pub arch: Option<String>,
     pub values: Vec<T>,
@@ -161,7 +161,7 @@ impl Options {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OptionValue {
     pub name: String,
     pub enabled: bool,

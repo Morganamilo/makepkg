@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::error::{CommandErrorExt, Context, Result};
+use crate::error::{CommandOutputExt, Context, Result};
 
 /*
 pub fn deptest<'a, I: Iterator<Item = &'a str>>(pkgs: I) -> Result<Vec<String>> {
@@ -57,12 +57,8 @@ where
         command.arg(pkg);
     }
 
-    let output = command
-        .output()
-        .cmd_context(&command, Context::QueryPacman)?;
-
-    let output = String::from_utf8(output.stdout).cmd_context(&command, Context::QueryPacman)?;
-    Ok(output.trim().lines().map(|l| l.to_string()).collect())
+    let output = command.output().read(&command, Context::QueryPacman)?;
+    Ok(output.lines().map(|l| l.to_string()).collect())
 }
 
 /*

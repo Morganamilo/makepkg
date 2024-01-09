@@ -79,8 +79,8 @@ use std::{
 
 use crate::{
     error::{
-        CommandErrorExt, Context, Error, IOContext, IOError, LintKind, ParseError, ParseErrorKind,
-        Result,
+        CommandErrorExt, CommandOutputExt, Context, Error, IOContext, IOError, LintKind,
+        ParseError, ParseErrorKind, Result,
     },
     pkgbuild::ArchVec,
     FileKind,
@@ -272,14 +272,12 @@ fn bash_output<P: AsRef<Path>>(dir: Option<&Path>, files: &[P], cmd: &str) -> Re
 
     let output = child
         .wait_with_output()
-        .cmd_context(&command, Context::SourcePkgbuild)?;
+        .read(&command, Context::SourcePkgbuild)?;
 
     thread
         .join()
         .unwrap()
         .cmd_context(&command, Context::SourcePkgbuild)?;
-
-    let output = String::from_utf8(output.stdout).cmd_context(&command, Context::SourcePkgbuild)?;
 
     Ok(output)
 }

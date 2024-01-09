@@ -3,7 +3,7 @@ use std::process::Command;
 
 use crate::{
     config::PkgbuildDirs,
-    error::{CommandErrorExt, Context, DownloadError, Result},
+    error::{CommandErrorExt, CommandOutputExt, Context, DownloadError, Result},
     pkgbuild::{Fragment, Source},
     sources::VCSKind,
     Event, Makepkg, Options,
@@ -36,11 +36,9 @@ impl Makepkg {
                 .arg("-R")
                 .arg(&repopath)
                 .output()
-                .download_context(source, &command, Context::None)?;
-            let url =
-                String::from_utf8(url.stdout).download_context(source, &command, Context::None)?;
+                .download_read(source, &command, Context::None)?;
 
-            if url.trim() != source.url {
+            if url != source.url {
                 return Err(DownloadError::RemotesDiffer(source.clone(), url.trim().into()).into());
             }
 
@@ -71,13 +69,7 @@ impl Makepkg {
                     .arg("info")
                     .current_dir(&srcpath)
                     .output()
-                    .download_context(source, &command, Context::None)?;
-
-                let info = String::from_utf8(info.stdout).download_context(
-                    source,
-                    &command,
-                    Context::None,
-                )?;
+                    .download_read(source, &command, Context::None)?;
 
                 let repository = info
                     .trim()

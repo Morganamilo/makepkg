@@ -15,7 +15,10 @@ use nix::{
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{CommandError, CommandErrorExt, Context, IOContext, IOError, IOErrorExt, Result},
+    error::{
+        CommandError, CommandErrorExt, CommandOutputExt, Context, IOContext, IOError, IOErrorExt,
+        Result,
+    },
     fs::open,
     installation_variables::FAKEROOT_LIBDIRS,
     makepkg::FakeRoot,
@@ -270,10 +273,8 @@ impl Makepkg {
             .wait()
             .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
-        let output = String::from_utf8(output)
-            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
-
-        Ok(output.trim().to_string())
+        let output = output.read(&command, Context::RunFunction(function.to_string()))?;
+        Ok(output)
     }
 
     pub(crate) fn fakeroot(&self) -> Result<String> {

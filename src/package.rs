@@ -18,7 +18,10 @@ use sha2::Sha256;
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{CommandErrorExt, Context, IOContext, IOErrorExt, LintError, LintKind, Result},
+    error::{
+        CommandErrorExt, CommandOutputExt, Context, IOContext, IOErrorExt, LintError, LintKind,
+        Result,
+    },
     fs::{copy, open, set_time},
     installation_variables::FAKEROOT_LIBDIRS,
     integ::hash_file,
@@ -330,12 +333,7 @@ impl Makepkg {
         )?;
 
         let mut fakerootcmd = Command::new("fakeroot");
-        let fakeroot = fakerootcmd.arg("-v").output().cmd_context(
-            &fakerootcmd,
-            Context::GeneratePackageFile(".PKGINFO".into()),
-        )?;
-
-        let fakeroot = String::from_utf8(fakeroot.stdout).cmd_context(
+        let fakeroot = fakerootcmd.arg("-v").output().read(
             &fakerootcmd,
             Context::GeneratePackageFile(".PKGINFO".into()),
         )?;
