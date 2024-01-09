@@ -133,17 +133,17 @@ dump_var() {
 }
 
 grep_function() {
-	local funcname=$1 regex="$2"
+	local funcname="$1" regex="$2"
 
-	declare -f $funcname 2>/dev/null | grep -E "$regex"
+	declare -f "$funcname" 2>/dev/null | grep -E "$regex"
 }
 
 dump_function_vars() {
-	local funcname=$1 varname attr_regex decl new_vars
+	local funcname="$1" varname attr_regex decl new_vars
 	declare -A new_vars
 	printf -v attr_regex '^[[:space:]]* [a-z1-9_]*\+?='
 
-	if ! have_function $funcname; then
+	if ! have_function "$funcname"; then
 		return
 	fi
 
@@ -194,10 +194,10 @@ have_function() {
 }
 
 dump_function_name() {
-	local funcname=$1
+	local funcname="$1"
 
-	if have_function $funcname; then
-		printf -- "FUNCTION %s\n" $funcname
+	if have_function "$funcname"; then
+		printf -- "FUNCTION %s\n" "$funcname"
 	fi
 }
 
@@ -205,7 +205,7 @@ dump_function_names() {
 	local name funcname
 
 	for funcname in "${pkgbuild_functions[@]}"; do
-		dump_function_name $funcname
+		dump_function_name "$funcname"
 	done
 
 	for name in "${pkgname[@]}"; do
@@ -223,16 +223,13 @@ dump_pkgbuild() {
 }
 
 run_function() {
-	local pkgfunc="$1"
-	local workingdir="$2"
-	local ret=0
+	local workingdir="$1" pkgfunc="$2" ret=0
+
+	if [[ ! -z "$3" ]]; then
+		pkgname="$3"
+	fi
 
 	export -n startdir srcdir pkgdir CARCH
-
-	if [[ ! -z $PKGNAME ]]; then
-		pkgname=$PKGNAME
-		unset PKGNAME
-	fi
 
 	cd_safe "$workingdir"
 	"$pkgfunc"
@@ -263,7 +260,7 @@ run_function_safe() {
 # usage:
 # pkgbuild dump <path/to/pkgbuild>
 # pkgbuild conf <path/to/config/files>...
-# pkgbuild run <function-name> <workingdir>
+# pkgbuild run <path/to/pkgbuild> <workingdir> <function_name> [pkgname]
 
 if [[ "$1" == dump ]]; then
 	shift

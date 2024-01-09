@@ -132,8 +132,8 @@ impl Makepkg {
             .arg("-")
             .arg("run")
             .arg(&dirs.pkgbuild)
-            .arg(function)
             .arg(workingdir)
+            .arg(function)
             .env("CARCH", &self.config.arch)
             .env("startdir", &dirs.startdir)
             .env("srcdir", &dirs.srcdir)
@@ -151,7 +151,7 @@ impl Makepkg {
         }
 
         if let Some(pkgname) = pkgname {
-            command.env("PKGNAME", pkgname);
+            command.arg(pkgname);
         }
 
         let logfile = dirs.logdest.join(format!(
