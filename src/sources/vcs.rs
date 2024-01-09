@@ -29,7 +29,7 @@ impl VCSKind {
             VCSKind::SVN => "svn",
             VCSKind::Mercurial => "hg",
             VCSKind::Fossil => "fossil",
-            VCSKind::BZR => todo!("bzr"),
+            VCSKind::BZR => "bzr",
         }
     }
 }

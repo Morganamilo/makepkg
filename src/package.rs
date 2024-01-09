@@ -514,10 +514,10 @@ impl Makepkg {
 
     pub(crate) fn fakeroot_env(&self, command: &mut Command) -> Result<()> {
         let key = self.fakeroot()?;
-        #[cfg(not(os_family = "apple"))]
+        #[cfg(not(target_vendor = "apple"))]
         command.env("LD_LIBRARY_PATH", FAKEROOT_LIBDIRS);
         command.env("LD_PRELOAD", FakeRoot::library_name());
-        #[cfg(os_family = "apple")]
+        #[cfg(target_vendor = "apple")]
         command
             .env("DYLD_FALLBACK_LIBRARY_PATH", FAKEROOT_LIBDIRS)
             .env("DYLD_INSERT_LIBRARIES", FakeRoot::library_name());

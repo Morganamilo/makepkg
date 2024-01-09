@@ -768,6 +768,7 @@ mod test {
         let mut options = crate::options::Options::default();
         options.clean_build = true;
         options.recreate_package = true;
+        options.ignore_arch = true;
         let mut pkgbuild = Pkgbuild::from_path("../makepkg-test").unwrap();
         let res = config.build(&options, &mut pkgbuild);
 
