@@ -24,6 +24,7 @@ fn main() {
 
     let prefix = var("PREFIX", "/usr");
     let exec_prefix = var("EXEC_PREFIX", &prefix);
+    let libdir = var("LIBDIR", &exec_prefix).join("lib");
     let sysconfdir = var("SYSCONFDIR", "/etc");
     let fakeroot_prefix = var("FAKEROOT_PREFIX", exec_prefix);
     let fakeroot_libsuffix = var("FAKEROOT_LIBSUFFIX", "lib:lib64:lib32");
@@ -43,6 +44,7 @@ fn main() {
 
     set_var("PREFIX", prefix);
     set_var("SYSCONFDIR", sysconfdir);
+    set_var("LIBDIR", libdir);
     set_var("FAKEROOT_PREFIX", fakeroot_prefix);
     set_var("FAKEROOT_LIBDIRS", fakeroot_libdirs);
 }

@@ -66,7 +66,8 @@ impl Makepkg {
 
         if !options.repackage {
             self.run_function(options, pkgbuild, Function::Build)?;
-            if options.check || (!options.no_check && self.config.build_env.enabled("check")) {
+            if options.check || (!options.no_check && self.config.build_env.get("check").enabled())
+            {
                 self.run_function(options, pkgbuild, Function::Check)?;
             }
         }

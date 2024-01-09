@@ -149,6 +149,10 @@ impl Makepkg {
             .current_dir(&dirs.startdir)
             .stdin(Stdio::piped());
 
+        if matches!(function, "build" | "check") || function.starts_with("package") {
+            self.build_env(dirs, pkgbuild, &mut command);
+        }
+
         if function.starts_with("package") {
             self.fakeroot_env(&mut command)?;
         }

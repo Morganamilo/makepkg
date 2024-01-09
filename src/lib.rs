@@ -8,6 +8,7 @@ pub use options::*;
 use pkgbuild::Pkgbuild;
 
 mod build;
+mod build_env;
 mod callback;
 mod fs;
 mod integ;

@@ -132,6 +132,28 @@ impl<T> ArchVec<T> {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum OptionState {
+    Enabled,
+    Disabled,
+    #[default]
+    Unset,
+}
+
+impl OptionState {
+    pub fn enabled(self) -> bool {
+        self == OptionState::Enabled
+    }
+
+    pub fn disabled(self) -> bool {
+        self == OptionState::Disabled
+    }
+
+    pub fn unset(self) -> bool {
+        self == OptionState::Unset
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Options {
     pub values: Vec<OptionValue>,
@@ -145,19 +167,12 @@ impl<'a> FromIterator<&'a str> for Options {
 }
 
 impl Options {
-    pub fn enabled(&self, name: &str) -> bool {
-        self.get(name).unwrap_or(false)
-    }
-
-    pub fn disabled(&self, name: &str) -> bool {
-        self.get(name).map(|v| !v).unwrap_or(false)
-    }
-
-    pub fn get(&self, name: &str) -> Option<bool> {
-        self.values
-            .iter()
-            .find(|o| o.name == name)
-            .map(|o| o.enabled)
+    pub fn get(&self, name: &str) -> OptionState {
+        match self.values.iter().find(|o| o.name == name) {
+            Some(v) if v.enabled => OptionState::Enabled,
+            Some(_) => OptionState::Disabled,
+            None => OptionState::Unset,
+        }
     }
 }
 

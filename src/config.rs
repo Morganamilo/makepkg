@@ -14,8 +14,8 @@ pub use crate::lint_config::*;
 use crate::{
     error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
     fs::{resolve_path, resolve_path_relative, Check},
-    installation_variables::MAKEPKG_CONFIG_PATH,
-    pkgbuild::{Options, Package, Pkgbuild, Source},
+    installation_variables::{MAKEPKG_CONFIG_PATH, PREFIX},
+    pkgbuild::{OptionState, Options, Package, Pkgbuild, Source},
     raw::RawConfig,
     sources::VCSKind,
 };
@@ -330,6 +330,24 @@ impl Config {
         }
     }
 
+    pub fn option(&self, pkgbuild: &Pkgbuild, name: &str) -> OptionState {
+        match pkgbuild.options.get(name) {
+            OptionState::Unset => self.options.get(name),
+            state => state,
+        }
+    }
+
+    pub fn build_option(&self, pkgbuild: &Pkgbuild, name: &str) -> OptionState {
+        match pkgbuild.options.get(name) {
+            OptionState::Unset => self.build_env.get(name),
+            state => state,
+        }
+    }
+
+    pub fn build_env(&self, name: &str) -> OptionState {
+        self.build_env.get(name)
+    }
+
     fn load(config: Option<PathBuf>) -> Result<Self> {
         umask(Mode::from_bits_truncate(0o022));
 
@@ -389,7 +407,6 @@ impl Config {
         let pacman = "pacman".to_string();
         let buildtool = env!("CARGO_PKG_NAME").to_string();
         let buildtoolver = env!("CARGO_PKG_VERSION").to_string();
-        let dbg_srcdir = PathBuf::from("/usr/src/debug");
         let compress_none = to_string(&["cat"]);
         let compress_gz = to_string(&["gzip", "-c", "-f2", "-n"]);
         let compress_bz2 = to_string(&["bzip2", "-c", "-f"]);
@@ -402,6 +419,8 @@ impl Config {
         let compress_lz = to_string(&["lzip", "-c", "-f"]);
         let strip_shared = "-S".to_string();
         let strip_static = "-S".to_string();
+        let ltoflags = "--flto".to_string();
+        let dbg_srcdir = Path::new(PREFIX).join("src/debug");
 
         let mut config = Config {
             source_date_epoch,
@@ -422,6 +441,7 @@ impl Config {
             compress_lz,
             strip_shared,
             strip_static,
+            ltoflags,
             ..Default::default()
         };
 
