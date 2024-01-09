@@ -560,6 +560,7 @@ impl Display for DownloadError {
 pub enum IntegError {
     ValidityCheck,
     VerifyFunction,
+    DoesNotSupportChecksums(Source),
     MissingFileForSig(String),
     ReadFingerprint(String),
     Gpgme(gpgme::Error),
@@ -573,6 +574,9 @@ impl Display for IntegError {
             }
             IntegError::VerifyFunction => {
                 f.write_str("verify() function failed to validate sources")
+            }
+            IntegError::DoesNotSupportChecksums(s) => {
+                write!(f, "{} does not supprt checksums", s)
             }
             IntegError::MissingFileForSig(s) => {
                 write!(f, "signature {} has no accompanying file", s)

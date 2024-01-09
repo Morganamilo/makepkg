@@ -19,7 +19,8 @@ use crate::options::Options;
 use crate::pkgbuild::{ArchVec, ArchVecs, Function, Pkgbuild, Source};
 use crate::Makepkg;
 
-//use crate::vcs::is_vcs_proto;
+mod mercurial;
+mod vcs;
 
 impl Makepkg {
     pub fn check_integ(&self, options: &Options, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
@@ -376,8 +377,8 @@ impl Makepkg {
             }
             let path = dirs.download_path(source);
 
-            let hash = match source.protocol() {
-                //Some(proto) if is_vcs_proto(proto) => self.checksum_vcs::<D>(source)?,
+            let hash = match source.vcs_kind() {
+                Some(vcs) => self.checksum_vcs::<D>(dirs, vcs, source)?,
                 _ => hash_file::<D>(&path)?,
             };
             out.push(hash);
@@ -406,8 +407,8 @@ impl Makepkg {
             return Ok(());
         }
 
-        let output = match source.protocol() {
-            //Some(proto) if is_vcs_proto(proto) => self.checksum_vcs::<D>(source)?,
+        let output = match source.vcs_kind() {
+            Some(vcs) => self.checksum_vcs::<D>(dirs, vcs, source)?,
             _ => hash_file::<D>(&path)?,
         };
 
