@@ -569,7 +569,7 @@ impl Display for DownloadError {
                 write!(f, "{} is not a clone of {}", s.file_name(), s.url)
             }
             DownloadError::UnsupportedFragment(s, k, frag) => {
-                write!(f, "{}: {} does not support fragment {}", s, k, frag.kind())
+                write!(f, "{}: {} does not support fragment {}", s, k, frag.key())
             }
             DownloadError::RefsDiffer(s, r, _) => {
                 write!(

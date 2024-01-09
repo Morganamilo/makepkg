@@ -39,13 +39,14 @@ pub struct Makepkg {
 impl Makepkg {
     pub fn new() -> Result<Makepkg> {
         let config = Config::new()?;
+        Ok(Self::from_config(config))
+    }
 
-        let makepkg = Makepkg {
+    pub fn from_config(config: Config) -> Makepkg {
+        Makepkg {
             config,
             ..Makepkg::default()
-        };
-
-        Ok(makepkg)
+        }
     }
 
     pub fn config(&self) -> &Config {

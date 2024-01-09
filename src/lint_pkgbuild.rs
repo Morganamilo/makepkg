@@ -215,9 +215,7 @@ impl Pkgbuild {
             }
 
             if self.has_function(Function::Build) && !self.has_function(Function::Package) {
-                lints.push(LintKind::MissingPackageFunction(
-                    self.package().pkgname.to_string(),
-                ));
+                lints.push(LintKind::MissingPackageFunction(self.pkgbase.to_string()));
             }
         } else {
             if self.package_functions.iter().any(|p| p == "package") {

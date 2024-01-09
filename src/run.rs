@@ -80,7 +80,7 @@ impl Makepkg {
                         &dirs,
                         pkgbuild,
                         workingdir,
-                        Some(pkgbuild.package().pkgname.as_str()),
+                        Some(pkgbuild.packages[0].pkgname.as_str()),
                         function,
                         false,
                     )?;

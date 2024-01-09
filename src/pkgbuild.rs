@@ -203,7 +203,7 @@ pub enum Fragment {
 
 impl Display for Fragment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}={}", self.kind(), self.value())
+        write!(f, "{}={}", self.key(), self.value())
     }
 }
 
@@ -224,7 +224,7 @@ impl FromStr for Fragment {
 }
 
 impl Fragment {
-    pub fn kind(&self) -> &'static str {
+    pub fn key(&self) -> &'static str {
         match self {
             Fragment::Revision(_) => "revision",
             Fragment::Branch(_) => "branch",
@@ -422,10 +422,6 @@ impl Pkgbuild {
         }
     }
 
-    pub fn package(&self) -> &Package {
-        &self.packages[0]
-    }
-
     pub fn packages(&self) -> impl Iterator<Item = &Package> {
         self.packages.iter()
     }
@@ -483,7 +479,7 @@ impl Pkgbuild {
         Ok(())
     }
 
-    pub fn from_path<P: Into<PathBuf>>(dir: P) -> Result<Self> {
+    pub fn new<P: Into<PathBuf>>(dir: P) -> Result<Self> {
         let dir = dir.into();
         let dir = resolve_path(Context::ReadPkgbuild, dir)?;
         let pkgbuild_path = dir.join(Pkgbuild::file_name());
@@ -630,7 +626,7 @@ impl Pkgbuild {
             let name = var.name.to_string();
             let name = name.as_str();
 
-            set_overridde_flag(package, &var);
+            set_override_flag(package, &var);
 
             match name {
                 "pkgdesc" => package.pkgdesc = Some(var.lint_string(lints)),
@@ -692,7 +688,7 @@ impl Package {
     }
 }
 
-fn set_overridde_flag(package: &mut Package, var: &Variable) {
+fn set_override_flag(package: &mut Package, var: &Variable) {
     package.overridden.insert(Key {
         name: var.name.clone(),
         arch: var.arch.clone(),
@@ -771,7 +767,7 @@ mod test {
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
-        let pkgbuild = Pkgbuild::from_path("../makepkg-test").unwrap();
+        let pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
         let res = config.geninteg(&options, &pkgbuild).unwrap();
         println!("{}", res);
     }
@@ -783,7 +779,7 @@ mod test {
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
-        let mut pkgbuild = Pkgbuild::from_path("../makepkg-test").unwrap();
+        let mut pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
         let res = config.build(&options, &mut pkgbuild);
 
         match res {
