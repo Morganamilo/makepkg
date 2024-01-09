@@ -10,10 +10,12 @@ use std::{
     time::SystemTimeError,
 };
 
-use crate::package::PackageKind;
-use crate::pkgbuild::{Fragment, Source};
-use crate::sources::VCSKind;
-use crate::FileKind;
+use crate::{
+    package::PackageKind,
+    pkgbuild::{Fragment, Source},
+    sources::VCSKind,
+    FileKind,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -515,6 +517,7 @@ pub enum DownloadError {
     UnsupportedFragment(Source, VCSKind, Fragment),
     RemotesDiffer(Source, String),
     RefsDiffer(Source, String, String),
+    NotCheckedOut(Source),
 }
 
 impl Display for DownloadError {
@@ -542,6 +545,7 @@ impl Display for DownloadError {
                     r,
                 )
             }
+            DownloadError::NotCheckedOut(s) => write!(f, "{} is not checked out", s.file_name()),
         }
     }
 }

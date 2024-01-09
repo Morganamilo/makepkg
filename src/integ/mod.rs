@@ -16,10 +16,10 @@ use crate::error::{
 };
 use crate::fs::open;
 use crate::options::Options;
-use crate::pkgbuild::{ArchVec, ArchVecs, Function, Source};
+use crate::pkgbuild::{ArchVec, ArchVecs, Function, Pkgbuild, Source};
 use crate::Makepkg;
+
 //use crate::vcs::is_vcs_proto;
-use crate::pkgbuild::Pkgbuild;
 
 impl Makepkg {
     pub fn check_integ(&self, options: &Options, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
@@ -429,7 +429,7 @@ pub(crate) fn hash_file<D: Digest>(path: &Path) -> Result<String> {
     hash::<D, _>(path, &mut file)
 }
 
-fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String> {
+pub(crate) fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String> {
     let mut buffer = vec![0; 1024];
     let mut digest = D::new();
 
