@@ -503,8 +503,8 @@ impl LintKind {
 
 #[derive(Debug, Clone)]
 pub struct LintError {
-    file_kind: FileKind,
-    issues: Vec<LintKind>,
+    pub file_kind: FileKind,
+    pub issues: Vec<LintKind>,
 }
 
 impl Display for LintError {

@@ -18,10 +18,7 @@ use sha2::Sha256;
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{
-        CommandErrorExt, CommandOutputExt, Context, IOContext, IOErrorExt, LintError, LintKind,
-        Result,
-    },
+    error::{CommandErrorExt, CommandOutputExt, Context, IOContext, IOErrorExt, Result},
     fs::{copy, open, set_time},
     installation_variables::FAKEROOT_LIBDIRS,
     integ::hash_file,
@@ -165,37 +162,33 @@ impl Makepkg {
         srcpkg: bool,
     ) -> Result<()> {
         let pkgdir;
-        let pkgext;
         let pkgname;
         let pkgfilename;
         let pkgfile;
+        let compress;
 
         if srcpkg {
             pkgname = pkgbuild.pkgbase.as_str();
             pkgdir = dirs.startdir.join("srcpkg");
-            pkgext = self.config.srcext.as_str();
-            pkgfilename = format!("{}-{}{}", pkgname, pkgbuild.version(), pkgext);
+            pkgfilename = format!("{}-{}{}", pkgname, pkgbuild.version(), self.config.srcext);
             pkgfile = dirs.srcpkgdest.join(&pkgfilename);
+            compress = self.config.srcext.compress();
         } else {
             pkgname = pkg.pkgname.as_str();
             pkgdir = dirs.pkgdir(pkg);
-            pkgext = self.config.pkgext.as_str();
             pkgfilename = format!(
                 "{}-{}-{}{}",
                 pkgname,
                 pkgbuild.version(),
                 self.config.arch,
-                pkgext
+                self.config.pkgext
             );
-            pkgfile = dirs.srcpkgdest.join(&pkgfilename)
+            pkgfile = dirs.srcpkgdest.join(&pkgfilename);
+            compress = self.config.pkgext.compress();
         };
 
-        let compress = self.compress()?;
-        let compress_prog = compress.get(0).ok_or_else(|| {
-            LintError::config(vec![LintKind::VariabeContainsEmptyString(
-                "COMPRESS".to_string(),
-            )])
-        })?;
+        let compress = self.config.compress_args(compress);
+        let compress_prog = &compress[0];
 
         self.event(Event::GeneratingPackageFile(pkgfilename.clone()));
         let files = self.package_files(&pkgdir)?;
@@ -460,30 +453,6 @@ impl Makepkg {
         }
 
         Ok(filesnull)
-    }
-
-    fn compress(&self) -> Result<&[String]> {
-        let c = self.config();
-
-        let flags = match c.pkgext.as_str() {
-            ".pkg.tar" => c.compress_none.as_slice(),
-            ".pkg.tar.gz" => c.compress_gz.as_slice(),
-            ".pkg.tar.b2" => c.compress_bz2.as_slice(),
-            ".pkg.tar.xz" => c.compress_xz.as_slice(),
-            ".pkg.tar.zst" => c.compress_zst.as_slice(),
-            ".pkg.tar.lzo" => c.compress_lzo.as_slice(),
-            ".pkg.tar.lrz" => c.compress_lrz.as_slice(),
-            ".pkg.tar.lz4" => c.compress_lz4.as_slice(),
-            ".pkg.tar.lz" => c.compress_lz.as_slice(),
-            ".pkg.tar.Z" => c.compress_z.as_slice(),
-            ext => {
-                return Err(
-                    LintError::config(vec![LintKind::InvalidPkgExt(ext.to_string())]).into(),
-                );
-            }
-        };
-
-        Ok(flags)
     }
 
     pub fn create_source_package(

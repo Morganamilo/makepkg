@@ -37,8 +37,8 @@ impl Config {
         warnings
     }
 
-    pub(crate) fn lint(&self, lints: &mut Vec<LintKind>) {
-        lint_ext(self, lints);
+    pub(crate) fn lint(&self, _lints: &mut Vec<LintKind>) {
+        //
     }
 }
 
@@ -53,15 +53,6 @@ fn warn_packager(config: &Config, warnings: &mut Vec<Warning>) {
             .all(|c| config.packager.contains(*c))
     {
         warnings.push(Warning::InvalidPackager(config.packager.clone()))
-    }
-}
-
-fn lint_ext(config: &Config, lints: &mut Vec<LintKind>) {
-    if !config.pkgext.starts_with(".pkg.tar") {
-        lints.push(LintKind::InvalidPkgExt(config.pkgext.clone()))
-    }
-    if !config.srcext.starts_with(".src.tar") {
-        lints.push(LintKind::InvalidSrcExt(config.srcext.clone()))
     }
 }
 

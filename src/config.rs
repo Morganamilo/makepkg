@@ -1,5 +1,6 @@
 use std::{
     ffi::OsStr,
+    fmt::Display,
     fs::read_dir,
     path::{Path, PathBuf},
     result::Result as StdResult,
@@ -18,6 +19,118 @@ use crate::{
     raw::RawConfig,
     sources::VCSKind,
 };
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Pkgext(pub Compress);
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Srcext(pub Compress);
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Compress {
+    Cat,
+    #[default]
+    Gz,
+    Bz2,
+    Xz,
+    Zst,
+    Lzo,
+    Lrz,
+    Lz4,
+    Z,
+    Lz,
+}
+
+impl Display for Compress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.tarext())
+    }
+}
+
+impl FromStr for Compress {
+    type Err = LintKind;
+
+    fn from_str(s: &str) -> StdResult<Self, Self::Err> {
+        match s {
+            ".tar" => Ok(Compress::Cat),
+            ".tar.gz" => Ok(Compress::Gz),
+            ".tar.b2" => Ok(Compress::Bz2),
+            ".tar.xz" => Ok(Compress::Xz),
+            ".tar.zst" => Ok(Compress::Zst),
+            ".tar.lzo" => Ok(Compress::Lzo),
+            ".tar.lrz" => Ok(Compress::Lrz),
+            ".tar.lz4" => Ok(Compress::Lz4),
+            ".tar.Z" => Ok(Compress::Z),
+            ".tar.lz" => Ok(Compress::Lz),
+            _ => Err(LintKind::InvalidPkgExt(s.to_string())),
+        }
+    }
+}
+
+impl Compress {
+    pub fn tarext(&self) -> &'static str {
+        match self {
+            Compress::Cat => ".tar",
+            Compress::Gz => ".tar.gz",
+            Compress::Bz2 => ".tar.bz2",
+            Compress::Xz => ".tar.xz",
+            Compress::Zst => ".tar.zsr",
+            Compress::Lzo => ".tar.lzo",
+            Compress::Lrz => ".tar.lrz",
+            Compress::Lz4 => ".tar.lz4",
+            Compress::Z => ".tar.Z",
+            Compress::Lz => ".tar.lz",
+        }
+    }
+}
+
+impl Display for Pkgext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(".pkg")?;
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for Pkgext {
+    type Err = LintKind;
+
+    fn from_str(s: &str) -> StdResult<Self, Self::Err> {
+        let s = s
+            .strip_prefix(".pkg")
+            .ok_or_else(|| LintKind::InvalidPkgExt(s.to_string()))?;
+        Ok(Self(s.parse()?))
+    }
+}
+
+impl Pkgext {
+    pub fn compress(&self) -> Compress {
+        self.0
+    }
+}
+
+impl Display for Srcext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(".src")?;
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for Srcext {
+    type Err = LintKind;
+
+    fn from_str(s: &str) -> StdResult<Self, Self::Err> {
+        let s = s
+            .strip_prefix(".src")
+            .ok_or_else(|| LintKind::InvalidSrcExt(s.to_string()))?;
+        Ok(Self(s.parse()?))
+    }
+}
+
+impl Srcext {
+    pub fn compress(&self) -> Compress {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct VCSClient {
@@ -169,8 +282,8 @@ pub struct Config {
     pub compress_lz4: Vec<String>,
     pub compress_z: Vec<String>,
     pub compress_lz: Vec<String>,
-    pub pkgext: String,
-    pub srcext: String,
+    pub pkgext: Pkgext,
+    pub srcext: Srcext,
     pub pacman_auth: Vec<String>,
 
     pub builddir: Option<PathBuf>,
@@ -200,6 +313,21 @@ impl Config {
 
     pub fn with_path<P: Into<PathBuf>>(path: P) -> Result<Self> {
         Config::load(Some(path.into()))
+    }
+
+    pub fn compress_args(&self, compress: Compress) -> &[String] {
+        match compress {
+            Compress::Cat => self.compress_none.as_slice(),
+            Compress::Gz => self.compress_gz.as_slice(),
+            Compress::Bz2 => self.compress_bz2.as_slice(),
+            Compress::Xz => self.compress_xz.as_slice(),
+            Compress::Zst => self.compress_zst.as_slice(),
+            Compress::Lzo => self.compress_lzo.as_slice(),
+            Compress::Lrz => self.compress_lrz.as_slice(),
+            Compress::Lz4 => self.compress_lz4.as_slice(),
+            Compress::Lz => self.compress_lz.as_slice(),
+            Compress::Z => self.compress_z.as_slice(),
+        }
     }
 
     fn load(config: Option<PathBuf>) -> Result<Self> {
@@ -262,7 +390,16 @@ impl Config {
         let buildtool = env!("CARGO_PKG_NAME").to_string();
         let buildtoolver = env!("CARGO_PKG_VERSION").to_string();
         let dbg_srcdir = PathBuf::from("/usr/src/debug");
-        let compress_none = vec!["cat".to_string()];
+        let compress_none = to_string(&["cat"]);
+        let compress_gz = to_string(&["gzip", "-c", "-f2", "-n"]);
+        let compress_bz2 = to_string(&["bzip2", "-c", "-f"]);
+        let compress_xz = to_string(&["xz", "-c", "-z", "-"]);
+        let compress_zst = to_string(&["zstd", "-c", "-z", "-"]);
+        let compress_lzo = to_string(&["lzop", "-q"]);
+        let compress_lrz = to_string(&["lrzip", "-q"]);
+        let compress_lz4 = to_string(&["lz4", "-q"]);
+        let compress_z = to_string(&["compress", "-c", "-f"]);
+        let compress_lz = to_string(&["lzip", "-c", "-f"]);
         let strip_shared = "-S".to_string();
         let strip_static = "-S".to_string();
 
@@ -274,6 +411,15 @@ impl Config {
             buildtoolver,
             dbg_srcdir,
             compress_none,
+            compress_gz,
+            compress_bz2,
+            compress_xz,
+            compress_zst,
+            compress_lzo,
+            compress_lrz,
+            compress_lz4,
+            compress_z,
+            compress_lz,
             strip_shared,
             strip_static,
             ..Default::default()
@@ -308,10 +454,16 @@ impl Config {
             config.arch = carch;
         }
         if let Ok(pkgext) = std::env::var("PKGEXT") {
-            config.pkgext = pkgext;
+            match pkgext.parse() {
+                Ok(c) => config.pkgext = c,
+                Err(e) => lints.push(e),
+            }
         }
         if let Ok(srcext) = std::env::var("SRCEXT") {
-            config.srcext = srcext;
+            match srcext.parse() {
+                Ok(c) => config.srcext = c,
+                Err(e) => lints.push(e),
+            }
         }
         if let Ok(key) = std::env::var("GPGKET") {
             config.gpgkey = Some(key);
@@ -459,11 +611,21 @@ impl Config {
                 "COMPRESSZ" => self.compress_z = var.lint_array(lints),
                 "COMPRESSLZ4" => self.compress_lz4 = var.lint_array(lints),
                 "COMPRESSLZ" => self.compress_lz = var.lint_array(lints),
-                "PKGEXT" => self.pkgext = var.lint_string(lints),
-                "SRCEXT" => self.srcext = var.lint_string(lints),
+                "PKGEXT" => match var.lint_string(lints).parse() {
+                    Ok(ext) => self.pkgext = ext,
+                    Err(e) => lints.push(e),
+                },
+                "SRCEXT" => match var.lint_string(lints).parse() {
+                    Ok(ext) => self.srcext = ext,
+                    Err(e) => lints.push(e),
+                },
                 "PACMAN_AUTH" => self.pacman_auth = var.lint_array(lints),
                 _ => (),
             }
         }
     }
+}
+
+fn to_string(s: &[&str]) -> Vec<String> {
+    s.iter().map(|s| s.to_string()).collect()
 }

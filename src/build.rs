@@ -97,7 +97,7 @@ impl Makepkg {
     pub fn is_srcpkg_built(&self, pkgbuild: &Pkgbuild) -> Result<bool> {
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
         let ver = pkgbuild.version();
-        let name = format!("{}-{}{}", pkgbuild.pkgbase, ver, self.config.pkgext);
+        let name = format!("{}-{}{}", pkgbuild.pkgbase, ver, self.config.srcext);
         let path = dirs.pkgdest.join(name);
         Ok(path.exists())
     }
