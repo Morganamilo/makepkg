@@ -34,9 +34,9 @@ impl Makepkg {
         source: &Source,
     ) -> Result<String> {
         match vcs {
-            //Some("git") => self.checksum_git::<D>(source),
+            VCSKind::Git => self.checksum_git::<D>(dirs, source),
             VCSKind::Mercurial => self.checksum_hg::<D>(dirs, source),
-            //Some("bzr") => self.checksum_bzr::<D>(source),
+            VCSKind::Bzr => self.checksum_bzr::<D>(dirs, source),
             _ => Err(IntegError::DoesNotSupportChecksums(source.clone()).into()),
         }
     }

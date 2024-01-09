@@ -825,6 +825,7 @@ mod test {
         options.ignore_arch = true;
         options.no_build = true;
         let mut pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
+        println!("{}", makepkg.geninteg(&options, &pkgbuild).unwrap());
         for pkg in makepkg.config.package_list(&pkgbuild).unwrap() {
             println!(" --- {}", pkg.display());
         }

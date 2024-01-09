@@ -19,6 +19,7 @@ use crate::options::Options;
 use crate::pkgbuild::{ArchVec, ArchVecs, Function, Pkgbuild, Source};
 use crate::Makepkg;
 
+mod bzr;
 mod git;
 mod mercurial;
 mod vcs;
@@ -207,7 +208,7 @@ impl Makepkg {
         }
 
         if !ok {
-            return Err(IntegError::VerifyFunction.into());
+            return Err(IntegError::ValidityCheck.into());
         }
 
         Ok(())
