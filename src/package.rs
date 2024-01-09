@@ -31,7 +31,7 @@ use crate::{
     FakeRoot, LogLevel, LogMessage, Makepkg,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PackageKind {
     Package,
     Source,
@@ -195,10 +195,10 @@ impl Makepkg {
 
         let create_flags = if srcpkg { "-cLf" } else { "-cnf" };
 
-        self.event(Event::GeneratingPackageFile(pkgfilename.clone()));
         let files = if srcpkg {
             Vec::new()
         } else {
+            self.event(Event::GeneratingPackageFile(pkgfilename.clone()));
             self.package_files(&pkgdir)?
         };
 
@@ -504,10 +504,8 @@ impl Makepkg {
         let start = dirs.startdir.as_path();
         let dest = dirs.srcpkgdir.as_path();
 
-        if all {
-            self.download_sources(options, pkgbuild, true)?;
-            self.check_integ(options, pkgbuild, true)?;
-        }
+        self.download_sources(options, pkgbuild, true)?;
+        self.check_integ(options, pkgbuild, true)?;
 
         self.event(Event::AddingPackageFiles);
 
@@ -524,7 +522,6 @@ impl Makepkg {
             pkgbuild.srcinfo(),
             Context::GenerateSrcinfo,
         )?;
-        set_time(dest.join(".SRCINFO"), self.config.source_date_epoch, false)?;
 
         for pkg in pkgbuild.packages() {
             if let Some(i) = &pkg.install {
@@ -569,12 +566,14 @@ impl Makepkg {
                 }
             }
 
-            for file in walkdir::WalkDir::new(dest) {
-                let file = file.context(
-                    Context::CreatePackage,
-                    IOContext::ReadDir(dest.to_path_buf()),
-                )?;
-                set_time(file.path(), self.config.source_date_epoch, false)?;
+            if options.reproducible {
+                for file in walkdir::WalkDir::new(dest) {
+                    let file = file.context(
+                        Context::CreatePackage,
+                        IOContext::ReadDir(dest.to_path_buf()),
+                    )?;
+                    set_time(file.path(), self.config.source_date_epoch, false)?;
+                }
             }
 
             self.make_archive(&dirs, pkgbuild, pkg, true)?;

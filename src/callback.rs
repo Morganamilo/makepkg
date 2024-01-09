@@ -49,6 +49,7 @@ impl CallBacks for CallBackPrinter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SigFailedKind {
+    NotSigned,
     UnknownPublicKey,
     Revoked,
     Expired,
@@ -60,6 +61,7 @@ pub enum SigFailedKind {
 impl Display for SigFailedKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            SigFailedKind::NotSigned => write!(f, "not signed"),
             SigFailedKind::UnknownPublicKey => write!(f, "unknown public key"),
             SigFailedKind::Revoked => f.write_str("key revoked"),
             SigFailedKind::Expired => f.write_str("key expired"),
@@ -79,7 +81,7 @@ pub struct SigFailed {
 
 impl Display for SigFailed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "FAILED ({} {})", self.kind, self.fingerprint)
+        write!(f, "{} {}", self.kind, self.fingerprint)
     }
 }
 

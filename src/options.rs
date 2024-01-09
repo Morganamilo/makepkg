@@ -1,6 +1,10 @@
+use crate::pkgbuild::OptionState;
+
 #[derive(Debug, Clone, Default)]
 pub struct Options {
     pub log: bool,
+    pub check: OptionState,
+    pub sign: OptionState,
     pub skip_pgp_check: bool,
     pub skip_checksums: bool,
     pub no_prepare: bool,
@@ -12,8 +16,6 @@ pub struct Options {
     pub repackage: bool,
     pub no_build: bool,
     pub recreate_package: bool,
-    pub check: bool,
-    pub no_check: bool,
     pub no_archive: bool,
     pub hold_ver: bool,
     pub all_source: bool,

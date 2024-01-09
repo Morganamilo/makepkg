@@ -549,6 +549,7 @@ pub enum DownloadError {
     Status(Source, u32),
     Command(Source, CommandError),
     UnsupportedFragment(Source, VCSKind, Fragment),
+    RefNotFound(Source, Fragment),
     RemotesDiffer(Source, String),
     RefsDiffer(Source, String, String),
     NotCheckedOut(Source),
@@ -571,6 +572,15 @@ impl Display for DownloadError {
             DownloadError::UnsupportedFragment(s, k, frag) => {
                 write!(f, "{}: {} does not support fragment {}", s, k, frag.key())
             }
+            DownloadError::RefNotFound(s, frag) => {
+                write!(
+                    f,
+                    "{}: {} {} not found",
+                    s.file_name(),
+                    frag.key(),
+                    frag.value()
+                )
+            }
             DownloadError::RefsDiffer(s, r, _) => {
                 write!(
                     f,
@@ -588,8 +598,10 @@ impl Display for DownloadError {
 pub enum IntegError {
     ValidityCheck,
     VerifyFunction,
+    DoesNotSupportSignatures(Source),
     DoesNotSupportChecksums(Source),
     MissingFileForSig(String),
+    SignatureNotFound(Source),
     ReadFingerprint(String),
     Gpgme(gpgme::Error),
 }
@@ -603,11 +615,17 @@ impl Display for IntegError {
             IntegError::VerifyFunction => {
                 f.write_str("verify() function failed to validate sources")
             }
+            IntegError::DoesNotSupportSignatures(s) => {
+                write!(f, "{} does not supprt signatures", s)
+            }
             IntegError::DoesNotSupportChecksums(s) => {
                 write!(f, "{} does not supprt checksums", s)
             }
             IntegError::MissingFileForSig(s) => {
                 write!(f, "signature {} has no accompanying file", s)
+            }
+            IntegError::SignatureNotFound(s) => {
+                write!(f, "signature not found for {}", s)
             }
             IntegError::ReadFingerprint(s) => {
                 write!(f, "failed to get fingerprint for {}", s)

@@ -14,10 +14,12 @@ impl Makepkg {
     pub fn build(&self, options: &Options, pkgbuild: &mut Pkgbuild) -> Result<()> {
         umask(Mode::from_bits_truncate(0o022));
 
+        let config = &self.config;
+
         if !options.ignore_arch && !self.arch_supported(pkgbuild) {
             return Err(ArchitectureError {
                 pkgbase: pkgbuild.pkgbase.clone(),
-                arch: self.config.arch.clone(),
+                arch: config.arch.clone(),
             }
             .into());
         }
@@ -70,7 +72,8 @@ impl Makepkg {
 
         if !options.repackage {
             self.run_function(options, pkgbuild, Function::Build)?;
-            if options.check || (!options.no_check && self.config.build_env.get("check").enabled())
+            if config.option(pkgbuild, "check").enabled()
+                || (config.build_option(pkgbuild, "check").enabled() && !options.check.disabled())
             {
                 self.run_function(options, pkgbuild, Function::Check)?;
             }

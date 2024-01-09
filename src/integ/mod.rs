@@ -19,6 +19,7 @@ use crate::options::Options;
 use crate::pkgbuild::{ArchVec, ArchVecs, Function, Pkgbuild, Source};
 use crate::Makepkg;
 
+mod git;
 mod mercurial;
 mod vcs;
 
@@ -91,13 +92,10 @@ impl Makepkg {
         let mut ok = true;
 
         for source in &sources.values {
-            /*match source.protocol() {
-                Some(proto) if is_vcs_proto(proto) => {
-                    ok &= self.verify_vcs_sig(gpg, pkgbuild, source)?;
-                    continue;
-                }
-                _ => (),
-            }*/
+            if let Some(proto) = source.vcs_kind() {
+                ok &= self.verify_vcs_sig(dirs, proto, pkgbuild, source, gpg)?;
+                continue;
+            }
 
             let (file, ext) = match source.file_name().rsplit_once('.') {
                 Some((file, ext)) => (file, ext),

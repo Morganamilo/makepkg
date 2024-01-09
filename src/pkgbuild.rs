@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::{
+    config::Config,
     error::{Context, Error, IOContext, IOErrorExt, LintError, LintKind, Result},
     fs::{resolve_path, Check},
     lint_pkgbuild::check_pkgver,
@@ -132,7 +133,7 @@ impl<T> ArchVec<T> {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum OptionState {
     Enabled,
     Disabled,
@@ -710,6 +711,31 @@ fn set_override_flag(package: &mut Package, var: &Variable) {
     });
 }
 
+impl Config {
+    pub fn package_list(&self, pkgbuild: &Pkgbuild) -> Result<Vec<PathBuf>> {
+        let dirs = self.pkgbuild_dirs(pkgbuild)?;
+        let pkgbase = &pkgbuild.pkgbase;
+        let version = pkgbuild.version();
+        let mut pkgs = Vec::new();
+
+        for p in pkgbuild.packages() {
+            let filename = format!("{}-{}-{}{}", p.pkgname, version, self.arch, self.pkgext);
+            pkgs.push(dirs.pkgdest.join(filename));
+
+            if self.option(pkgbuild, "debug").enabled() && self.option(pkgbuild, "strip").enabled()
+            {
+                let filename = format!(
+                    "{}-{}-{}-{}{}",
+                    pkgbase, "debug", version, self.arch, self.pkgext
+                );
+                pkgs.push(dirs.pkgdest.join(filename));
+            }
+        }
+
+        Ok(pkgs)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::io::{stdout, Write};
@@ -792,14 +818,18 @@ mod test {
 
     #[test]
     fn lint_pkgbuild() {
-        let config = Makepkg::new().unwrap().callback(PrettyPrinter);
+        let makepkg = Makepkg::new().unwrap().callback(PrettyPrinter);
         let mut options = Options::new();
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
+        options.no_build = true;
         let mut pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
+        for pkg in makepkg.config.package_list(&pkgbuild).unwrap() {
+            println!(" --- {}", pkg.display());
+        }
         //let res = config.build(&options, &mut pkgbuild);
-        let res = config.create_source_package(&options, &mut pkgbuild, true);
+        let res = makepkg.build(&options, &mut pkgbuild);
 
         match res {
             Ok(_) => (),

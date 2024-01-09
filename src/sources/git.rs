@@ -113,7 +113,7 @@ impl Makepkg {
             _ => (),
         }
 
-        if matches!(source.fragment, Some(Fragment::Tag(_))) {
+        if let Some(frag @ Fragment::Tag(_)) = &source.fragment {
             let mut command = Command::new("git");
             command
                 .arg("tag")
@@ -125,7 +125,11 @@ impl Makepkg {
                 .output()
                 .download_read(source, &command, Context::None)?;
 
-            if !tagname.is_empty() && tagname != gitref {
+            if tagname.is_empty() {
+                return Err(DownloadError::RefNotFound(source.clone(), frag.clone()).into());
+            }
+
+            if tagname != gitref {
                 return Err(DownloadError::RefsDiffer(
                     source.clone(),
                     gitref.clone(),
