@@ -220,7 +220,7 @@ impl Pkgbuild {
                 ));
             }
         } else {
-            if self.has_function(Function::Package) {
+            if self.package_functions.iter().any(|p| p == "package") {
                 lints.push(LintKind::WrongPackgeFunctionFormat);
             }
             for pkg in self.packages() {
