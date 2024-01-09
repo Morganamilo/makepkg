@@ -12,9 +12,12 @@ use crate::{
     Makepkg,
 };
 
+mod bzr;
 mod curl;
 mod file;
+mod fossil;
 mod git;
+mod mercurial;
 mod svn;
 mod vcs;
 

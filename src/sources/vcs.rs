@@ -1,9 +1,8 @@
-use std::{collections::BTreeMap, fmt::Display, option};
+use std::{collections::BTreeMap, fmt::Display};
 
-use crate::error::DownloadError;
 use crate::{
     config::{PkgbuildDirs, VCSClient},
-    error::Result,
+    error::{DownloadError, Result},
     pkgbuild::{Pkgbuild, Source},
     Makepkg, Options,
 };
@@ -14,7 +13,7 @@ pub enum VCSKind {
     SVN,
     Mercurial,
     Fossil,
-    BZR
+    BZR,
 }
 
 impl Display for VCSKind {
@@ -28,8 +27,8 @@ impl VCSKind {
         match self {
             VCSKind::Git => "git",
             VCSKind::SVN => "svn",
-            VCSKind::Mercurial => todo!("hg"),
-            VCSKind::Fossil => todo!("fossil"),
+            VCSKind::Mercurial => "hg",
+            VCSKind::Fossil => "fossil",
             VCSKind::BZR => todo!("bzr"),
         }
     }
@@ -48,15 +47,14 @@ impl Source {
     }
 }
 
-pub fn is_vcs_proto(proto: &str) -> bool {
-    ["bzr", "fossil", "git", "hg", "svn"].contains(&proto)
-}
-
 impl Makepkg {
     pub(crate) fn extract_vcs(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
         match source.protocol() {
             Some("git") => self.extract_git(dirs, source),
             Some("svn") => self.extract_svn(dirs, source),
+            Some("hg") => self.extract_hg(dirs, source),
+            Some("fossil") => self.extract_fossil(dirs, source),
+            Some("bzr") => self.extract_bzr(dirs, source),
             _ => return Err(DownloadError::UnknownVCSClient(source.clone()).into()),
         }
     }
@@ -73,10 +71,9 @@ impl Makepkg {
                 match client.protocol.as_str() {
                     "git" => self.download_git(dirs, options, source)?,
                     "svn" => self.download_svn(dirs, options, source)?,
-                    //"hg" => self.download_hg(source)?,
-                    //"fossil" => self.download_fossil(source)?,
-                    //"bzr" => self.download_bzr(source)?,
-                    //_ => bail!("unknown vcs client {}", client.protocol),
+                    "hg" => self.download_hg(dirs, options, source)?,
+                    "fossil" => self.download_fossil(dirs, options, source)?,
+                    "bzr" => self.download_bzr(dirs, options, source)?,
                     _ => return Err(DownloadError::UnknownVCSClient(source.clone()).into()),
                 }
             }

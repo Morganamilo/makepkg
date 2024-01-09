@@ -78,15 +78,13 @@ use std::{
 };
 
 use crate::{
-    error::{CommandError, CommandErrorExt, Context, IOContext},
+    error::{
+        CommandError, CommandErrorExt, Context, Error, IOContext, IOError, LintKind, ParseError,
+        ParseErrorKind, Result,
+    },
+    pkgbuild::ArchVec,
     FileKind,
 };
-use crate::{
-    error::{Error, IOError},
-    pkgbuild::ArchVec,
-};
-
-use crate::error::{LintKind, ParseError, ParseErrorKind, Result};
 
 pub(crate) type LintResult<T> = std::result::Result<T, LintKind>;
 
@@ -309,7 +307,7 @@ fn words(line: &str, file_kind: FileKind) -> Result<Vec<String>> {
                                 file_kind,
                                 ParseErrorKind::UnknownEscapeSequence(c),
                             )
-                            .into())
+                            .into());
                         }
                         None => todo!(),
                     },
@@ -321,7 +319,7 @@ fn words(line: &str, file_kind: FileKind) -> Result<Vec<String>> {
                             file_kind,
                             ParseErrorKind::UnterminatedString(word.to_string()),
                         )
-                        .into())
+                        .into());
                     }
                 }
             }

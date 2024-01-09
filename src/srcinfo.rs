@@ -1,8 +1,10 @@
 use std::fmt::Display;
 use std::io::Write;
 
-use crate::error::{Context, IOContext, IOErrorExt, Result};
-use crate::pkgbuild::{ArchVecs, Package, Pkgbuild};
+use crate::{
+    error::{Context, IOContext, IOErrorExt, Result},
+    pkgbuild::{ArchVecs, Package, Pkgbuild},
+};
 
 macro_rules! writeln {
     ($dst:expr, $($arg:tt)*) => {

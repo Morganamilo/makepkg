@@ -2,13 +2,11 @@ use std::process::Command;
 
 use walkdir::WalkDir;
 
-use crate::error::{CommandErrorExt, IOContext, IOErrorExt};
-use crate::fs::{copy, make_link, read_link};
 use crate::{
     config::PkgbuildDirs,
-    error::Result,
-    error::{Context, DownloadError},
-    fs::mkdir,
+    error::{CommandErrorExt, IOContext, IOErrorExt},
+    error::{Context, DownloadError, Result},
+    fs::{copy, make_link, mkdir, read_link},
     pkgbuild::{Fragment, Source},
     sources::VCSKind,
     Event, Makepkg, Options, TOOL_NAME,
@@ -77,7 +75,7 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn extract_svn(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
+    pub(crate) fn extract_svn(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
         self.event(Event::ExtractingVCS(VCSKind::SVN, source.clone()));
 
         let repopath = dirs.download_path(source);
