@@ -227,6 +227,8 @@ run_function() {
 	local workingdir="$2"
 	local ret=0
 
+	export -n startdir srcdir pkgdir CARCH
+
 	if [[ ! -z $PKGNAME ]]; then
 		pkgname=$PKGNAME
 		unset PKGNAME
