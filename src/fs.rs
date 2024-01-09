@@ -1,12 +1,14 @@
 use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
 use std::io::{self};
 use std::os::unix;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Component, PathBuf};
 use std::{fs::metadata, path::Path};
 
 use nix::sys::stat::{utimensat, UtimensatFlags};
 use nix::sys::time::TimeSpec;
+use nix::NixPath;
+use walkdir::WalkDir;
 
 use crate::error::{Context, IOContext, IOError, IOErrorExt, Result};
 
@@ -117,6 +119,48 @@ pub fn copy<P1: AsRef<Path>, P2: AsRef<Path>>(src: P1, dest: P2, context: Contex
     Ok(())
 }
 
+pub fn copy_dir<P1: AsRef<Path>, P2: AsRef<Path>>(
+    src: P1,
+    dest: P2,
+    context: Context,
+) -> Result<()> {
+    let (src, dest) = (src.as_ref(), dest.as_ref());
+    for file in WalkDir::new(src) {
+        let file = file.context(context.clone(), IOContext::ReadDir(src.to_path_buf()))?;
+        let ty = file.file_type();
+        let rel_path = &file
+            .path()
+            .strip_prefix(src)
+            .context(context.clone(), IOContext::ReadDir(src.to_path_buf()))?;
+        let mut dest = dest.to_path_buf();
+        if !rel_path.is_empty() {
+            dest = dest.join(rel_path);
+        }
+
+        if ty.is_dir() {
+            mkdir(&dest, context.clone())?;
+            let metadata = file
+                .metadata()
+                .context(context.clone(), IOContext::Stat(file.path().into()))?;
+            std::fs::set_permissions(&dest, PermissionsExt::from_mode(metadata.mode()))
+                .context(Context::CreatePackage, IOContext::Chmod(dest))?;
+        } else if ty.is_symlink() {
+            let pointer = read_link(file.path(), context.clone())?;
+            make_link(pointer, &dest, context.clone())?;
+        } else {
+            copy(file.path(), &dest, context.clone())?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C, context: Context) -> Result<()> {
+    let path = path.as_ref();
+    std::fs::write(path, contents).context(context, IOContext::Write(path.into()))?;
+    Ok(())
+}
+
 pub fn make_link<P1: AsRef<Path>, P2: AsRef<Path>>(
     src: P1,
     dest: P2,
@@ -133,11 +177,16 @@ pub fn read_link<P: AsRef<Path>>(path: P, context: Context) -> Result<PathBuf> {
     Ok(real)
 }
 
-pub fn set_time<P: AsRef<Path>>(path: P, time: u64) -> Result<()> {
+pub fn set_time<P: AsRef<Path>>(path: P, time: u64, follow_links: bool) -> Result<()> {
     let time = TimeSpec::new(time as _, 0);
     let path = path.as_ref();
+    let flags = if follow_links {
+        UtimensatFlags::FollowSymlink
+    } else {
+        UtimensatFlags::NoFollowSymlink
+    };
 
-    utimensat(None, path, &time, &time, UtimensatFlags::NoFollowSymlink)
+    utimensat(None, path, &time, &time, flags)
         .context(Context::UnifySourceTime, IOContext::Utimensat(path.into()))?;
     Ok(())
 }

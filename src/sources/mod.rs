@@ -72,7 +72,7 @@ impl Makepkg {
                     Context::ExtractSources,
                     IOContext::ReadDir(dirs.srcdir.to_path_buf()),
                 )?;
-                set_time(file.path(), self.config.source_date_epoch)?;
+                set_time(file.path(), self.config.source_date_epoch, false)?;
             }
         }
 

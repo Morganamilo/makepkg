@@ -1,4 +1,8 @@
-use std::{cell::RefCell, fmt::Display};
+use std::{
+    cell::RefCell,
+    fmt::Display,
+    io::{stdout, Write},
+};
 
 use crate::{pkgbuild::Source, sources::VCSKind, Makepkg};
 
@@ -21,12 +25,13 @@ impl CallBacks for CallBackPrinter {
             | Event::Extacting(_)
             | Event::RemovingSrcdir
             | Event::RemovingPkgdir
-            | Event::AddingFileTopackage(_)
+            | Event::AddingFileToPackage(_)
             | Event::GeneratingPackageFile(_)
             | Event::DownloadingVCS(_, _)
             | Event::UpdatingVCS(_, _) => println!("    {}", event),
             Event::VerifyingChecksum(_) | Event::VerifyingSignature(_) => {
-                print!("    {} ...", event)
+                print!("    {} ...", event);
+                let _ = stdout().flush();
             }
             Event::ChecksumSkipped(_)
             | Event::ChecksumFailed(_, _)
@@ -120,7 +125,8 @@ pub enum Event {
     CreatingPackage(String),
     CreatingDebugPackage(String),
     CreatingSourcePackage(String),
-    AddingFileTopackage(String),
+    AddingPackageFiles,
+    AddingFileToPackage(String),
     GeneratingPackageFile(String),
     DownloadingVCS(VCSKind, Source),
     UpdatingVCS(VCSKind, Source),
@@ -142,6 +148,7 @@ impl Display for Event {
             Event::BuiltSourcePackage(name, ver) => {
                 write!(f, "Built source package {}-{}", name, ver)
             }
+            Event::AddingPackageFiles => write!(f, "Adding package files..."),
             Event::RetrievingSources => write!(f, "Retrieving sources..."),
             Event::VerifyingSignatures => write!(f, "Verifying source signatures..."),
             Event::VerifyingChecksums => write!(f, "Verifying source checksums..."),
@@ -159,7 +166,7 @@ impl Display for Event {
             Event::ExtractingSources => write!(f, "ExtractingSources..."),
             Event::SourcesAreReady => write!(f, "Sources are ready"),
             Event::NoExtact(file) => write!(f, "skipping {} (no extract)", file),
-            Event::Extacting(file) => write!(f, "extracting {}...", file),
+            Event::Extacting(file) => write!(f, "extracting {} ...", file),
             Event::RunningFunction(func) => write!(f, "Starting {}()...", func),
             Event::RemovingSrcdir => write!(f, "removing existing $srcdir/ directory"),
             Event::RemovingPkgdir => write!(f, "removing existing $pkgdir/ directory"),
@@ -168,10 +175,10 @@ impl Display for Event {
             Event::CreatingPackage(file) => write!(f, "Creating package {}...", file),
             Event::CreatingDebugPackage(file) => write!(f, "Creating debug package {}...", file),
             Event::CreatingSourcePackage(file) => write!(f, "Creating source package {}...", file),
-            Event::AddingFileTopackage(file) => write!(f, "adding {}...", file),
-            Event::GeneratingPackageFile(file) => write!(f, "generating {}...", file),
-            Event::DownloadingVCS(k, s) => write!(f, "cloning {} repo {}...", k, s.file_name()),
-            Event::UpdatingVCS(k, s) => write!(f, "updading {} repo {}...", k, s.file_name()),
+            Event::AddingFileToPackage(file) => write!(f, "adding {} ...", file),
+            Event::GeneratingPackageFile(file) => write!(f, "generating {} ...", file),
+            Event::DownloadingVCS(k, s) => write!(f, "cloning {} repo {} ...", k, s.file_name()),
+            Event::UpdatingVCS(k, s) => write!(f, "updading {} repo {} ...", k, s.file_name()),
             Event::ExtractingVCS(k, s) => write!(
                 f,
                 "creating working copy of {} {} repo...",
@@ -204,6 +211,7 @@ pub enum LogMessage {
     SkippingAllIntegrityChecks,
     SkippingPGPIntegrityChecks,
     SkippingChecksumIntegrityChecks,
+    KeyNotDoundInKeys(String),
 }
 
 impl Display for LogMessage {
@@ -216,6 +224,7 @@ impl Display for LogMessage {
             LogMessage::SkippingChecksumIntegrityChecks => {
                 f.write_str("skipping checksum integrity checks")
             }
+            LogMessage::KeyNotDoundInKeys(k) => write!(f, "key {} not found in keys/pgp", k),
         }
     }
 }

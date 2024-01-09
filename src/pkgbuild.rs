@@ -712,6 +712,8 @@ fn set_override_flag(package: &mut Package, var: &Variable) {
 
 #[cfg(test)]
 mod test {
+    use std::io::{stdout, Write};
+
     use ansi_term::{Color, Style};
 
     use crate::{CallBacks, Event, LogLevel, LogMessage, Makepkg, Options};
@@ -731,13 +733,14 @@ mod test {
                 | Event::Extacting(_)
                 | Event::RemovingSrcdir
                 | Event::RemovingPkgdir
-                | Event::AddingFileTopackage(_)
+                | Event::AddingFileToPackage(_)
                 | Event::GeneratingPackageFile(_)
                 | Event::DownloadingVCS(_, _)
                 | Event::ExtractingVCS(_, _)
                 | Event::UpdatingVCS(_, _) => println!("    {}", event),
                 Event::VerifyingChecksum(_) | Event::VerifyingSignature(_) => {
-                    print!("    {} ...", event)
+                    print!("    {} ...", event);
+                    let _ = stdout().flush();
                 }
                 Event::ChecksumSkipped(_)
                 | Event::ChecksumFailed(_, _)
@@ -795,7 +798,8 @@ mod test {
         options.recreate_package = true;
         options.ignore_arch = true;
         let mut pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
-        let res = config.build(&options, &mut pkgbuild);
+        //let res = config.build(&options, &mut pkgbuild);
+        let res = config.create_source_package(&options, &mut pkgbuild, true);
 
         match res {
             Ok(_) => (),

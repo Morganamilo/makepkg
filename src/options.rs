@@ -16,6 +16,7 @@ pub struct Options {
     pub no_check: bool,
     pub no_archive: bool,
     pub hold_ver: bool,
+    pub all_source: bool,
 }
 
 impl Options {

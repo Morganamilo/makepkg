@@ -1,3 +1,5 @@
+use nix::sys::stat::{umask, Mode};
+
 use crate::{
     callback::Event,
     error::{AlreadyBuiltError, ArchitectureError, Context, Result},
@@ -10,6 +12,8 @@ use crate::{
 
 impl Makepkg {
     pub fn build(&self, options: &Options, pkgbuild: &mut Pkgbuild) -> Result<()> {
+        umask(Mode::from_bits_truncate(0o022));
+
         if !options.ignore_arch && !self.arch_supported(pkgbuild) {
             return Err(ArchitectureError {
                 pkgbase: pkgbuild.pkgbase.clone(),

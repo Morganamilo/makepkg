@@ -12,20 +12,23 @@ use std::{
     thread,
 };
 
-use nix::NixPath;
+use nix::{
+    sys::stat::{umask, Mode},
+    NixPath,
+};
 use sha2::Sha256;
 
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
     error::{CommandErrorExt, CommandOutputExt, Context, IOContext, IOErrorExt, Result},
-    fs::{copy, open, set_time},
+    fs::{copy, copy_dir, mkdir, open, rm_all, set_time, write},
     installation_variables::FAKEROOT_LIBDIRS,
     integ::hash_file,
     options::Options,
     pacman::buildinfo_installed,
     pkgbuild::{Package, Pkgbuild},
-    FakeRoot, Makepkg,
+    FakeRoot, LogLevel, LogMessage, Makepkg,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,7 +68,7 @@ impl Makepkg {
 
         if let Some(install) = &pkg.install {
             let dest = pkgdir.join(".INSTALL");
-            self.event(Event::AddingFileTopackage(install.to_string()));
+            self.event(Event::AddingFileToPackage(install.to_string()));
             let install = dirs.startdir.join(install);
             copy(install, &dest, Context::CreatePackage)?;
             std::fs::set_permissions(&dest, PermissionsExt::from_mode(0o644))
@@ -73,7 +76,7 @@ impl Makepkg {
         }
 
         if let Some(changelog) = &pkg.changelog {
-            self.event(Event::AddingFileTopackage(changelog.to_string()));
+            self.event(Event::AddingFileToPackage(changelog.to_string()));
             let changelog = dirs.startdir.join(changelog);
             let dest = pkgdir.join(".CHANGELOG");
             copy(changelog, &dest, Context::CreatePackage)?;
@@ -83,15 +86,15 @@ impl Makepkg {
 
         for file in walkdir::WalkDir::new(&pkgdir) {
             let file = file.context(Context::CreatePackage, IOContext::ReadDir(pkgdir.clone()))?;
-            set_time(file.path(), self.config.source_date_epoch)?;
+            set_time(file.path(), self.config.source_date_epoch, false)?;
         }
 
         self.generate_mtree(dirs, pkg)?;
 
-        set_time(pkgdir.join(".MTREE"), self.config.source_date_epoch)?;
+        set_time(pkgdir.join(".MTREE"), self.config.source_date_epoch, false)?;
 
         if !options.no_archive {
-            self.make_archive(dirs, pkgbuild, pkg, false)?;
+            self.make_archive(dirs, pkgbuild, &pkgbuild.packages[0], false)?;
         }
 
         Ok(())
@@ -169,7 +172,7 @@ impl Makepkg {
 
         if srcpkg {
             pkgname = pkgbuild.pkgbase.as_str();
-            pkgdir = dirs.startdir.join("srcpkg");
+            pkgdir = dirs.srcpkgdir.parent().unwrap().to_path_buf();
             pkgfilename = format!("{}-{}{}", pkgname, pkgbuild.version(), self.config.srcext);
             pkgfile = dirs.srcpkgdest.join(&pkgfilename);
             compress = self.config.srcext.compress();
@@ -190,8 +193,14 @@ impl Makepkg {
         let compress = self.config.compress_args(compress);
         let compress_prog = &compress[0];
 
+        let create_flags = if srcpkg { "-cLf" } else { "-cnf" };
+
         self.event(Event::GeneratingPackageFile(pkgfilename.clone()));
-        let files = self.package_files(&pkgdir)?;
+        let files = if srcpkg {
+            Vec::new()
+        } else {
+            self.package_files(&pkgdir)?
+        };
 
         let mut file = File::options();
         file.create(true).write(true).truncate(true);
@@ -199,17 +208,29 @@ impl Makepkg {
 
         let mut tarcmd = Command::new("bsdtar");
         self.fakeroot_env(&mut tarcmd)?;
+
         tarcmd
             .arg("--no-fflags")
-            .arg("-cnf")
-            .arg("-")
-            .arg("--null")
-            .arg("--files-from")
+            .arg(create_flags)
             .arg("-")
             .env("LANG", "C")
-            .current_dir(&pkgdir)
             .stdout(Stdio::piped())
             .stdin(Stdio::piped());
+
+        if srcpkg {
+            tarcmd
+                .current_dir(&pkgdir)
+                .arg("-cLf")
+                .arg("-")
+                .arg(pkgname);
+        } else {
+            tarcmd
+                .current_dir(&pkgdir)
+                .arg("-cnf")
+                .arg("--null")
+                .arg("--files-from")
+                .arg("-");
+        }
 
         let mut tar = tarcmd
             .spawn()
@@ -455,26 +476,114 @@ impl Makepkg {
         Ok(filesnull)
     }
 
+    fn copy_to_srcpkg(&self, from: &Path, to: &Path, name: &str) -> Result<()> {
+        self.event(Event::AddingFileToPackage(name.to_string()));
+        copy_dir(from, to, Context::BuildPackage)?;
+        Ok(())
+    }
+
     pub fn create_source_package(
         &self,
         options: &Options,
         pkgbuild: &Pkgbuild,
         all: bool,
     ) -> Result<()> {
-        self.err_if_srcpkg_built(options, pkgbuild)?;
+        let mut added = HashSet::new();
+        umask(Mode::from_bits_truncate(0o022));
+
+        if !options.recreate_package {
+            self.err_if_srcpkg_built(options, pkgbuild)?;
+        }
 
         self.event(Event::BuildingSourcePackage(
             pkgbuild.pkgbase.to_string(),
             pkgbuild.version(),
         ));
 
-        self.download_sources(options, pkgbuild, all)?;
-        self.check_integ(options, pkgbuild, all)?;
+        let dirs = self.pkgbuild_dirs(pkgbuild)?;
+        let start = dirs.startdir.as_path();
+        let dest = dirs.srcpkgdir.as_path();
 
-        self.event(Event::BuiltSourcePackage(
-            pkgbuild.pkgbase.clone(),
-            pkgbuild.version(),
-        ));
+        if all {
+            self.download_sources(options, pkgbuild, true)?;
+            self.check_integ(options, pkgbuild, true)?;
+        }
+
+        self.event(Event::AddingPackageFiles);
+
+        if dirs.srcpkgdir.exists() {
+            rm_all(&dirs.srcpkgdir, Context::BuildPackage)?;
+        }
+
+        mkdir(&dirs.srcpkgdir, Context::BuildPackage)?;
+
+        self.copy_to_srcpkg(&start.join("PKGBUILD"), &dest.join("PKGBUILD"), "PKGBUILD")?;
+        self.event(Event::AddingFileToPackage(".SRCINFO".to_string()));
+        write(
+            dest.join(".SRCINFO"),
+            pkgbuild.srcinfo(),
+            Context::GenerateSrcinfo,
+        )?;
+        set_time(dest.join(".SRCINFO"), self.config.source_date_epoch, false)?;
+
+        for pkg in pkgbuild.packages() {
+            if let Some(i) = &pkg.install {
+                if !added.insert(i) {
+                    continue;
+                }
+                self.copy_to_srcpkg(&start.join(i), &dest.join(i), i)?;
+            }
+
+            if let Some(changelog) = &pkg.changelog {
+                if !added.insert(changelog) {
+                    continue;
+                }
+                self.copy_to_srcpkg(&start.join(changelog), &dest.join(changelog), changelog)?;
+            }
+
+            for fkey in &pkgbuild.validpgpkeys {
+                let keyfile = format!("{}.asc", fkey);
+                let key = Path::new("keys/pgp").join(&keyfile);
+                if !dirs.startdir.join(&key).exists() {
+                    self.log(LogLevel::Warning, LogMessage::KeyNotDoundInKeys(keyfile));
+                    continue;
+                }
+
+                let keydir = dest.join("keys/pgp");
+                if !keydir.exists() {
+                    mkdir(keydir, Context::BuildPackage)?;
+                }
+
+                self.copy_to_srcpkg(&start.join(&key), &dest.join(&key), &keyfile)?;
+            }
+
+            for arch in &pkgbuild.source.values {
+                for sources in &arch.values {
+                    if !sources.is_remote() || all {
+                        self.copy_to_srcpkg(
+                            &dirs.download_path(sources),
+                            &dest.join(sources.file_name()),
+                            sources.file_name(),
+                        )?;
+                    }
+                }
+            }
+
+            for file in walkdir::WalkDir::new(dest) {
+                let file = file.context(
+                    Context::CreatePackage,
+                    IOContext::ReadDir(dest.to_path_buf()),
+                )?;
+                set_time(file.path(), self.config.source_date_epoch, false)?;
+            }
+
+            self.make_archive(&dirs, pkgbuild, pkg, true)?;
+
+            self.event(Event::BuiltSourcePackage(
+                pkgbuild.pkgbase.clone(),
+                pkgbuild.version(),
+            ));
+        }
 
         Ok(())
     }

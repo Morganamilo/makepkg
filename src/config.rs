@@ -8,8 +8,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use nix::sys::stat::{umask, Mode};
-
 pub use crate::lint_config::*;
 use crate::{
     error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
@@ -208,6 +206,9 @@ pub struct PkgbuildDirs {
     /// Each package in the [`Pkgbuild`] writes to [`pkgdir`](`PkgbuildDirs::pkgdir`)/[`pkgname`](`Package::pkgname`).
     /// This will be [`startdir`](`PkgbuildDirs::startdir`)/`pkg`, or if [`builddir`](`PkgbuildDirs::builddir`) is set, [`builddir`](`PkgbuildDirs::builddir`)/[`pkgbase`](`Pkgbuild::pkgbase`)/`pkg`.
     pub pkgdir: PathBuf,
+    /// The directory that source packages are built in. This will be
+    /// [`builddir`](`Pkgbuilds::builddir`)/srcpkg/[`pkgbase`](`Pkgbuild::pkgbase`).
+    pub srcpkgdir: PathBuf,
     /// The directory sources are downloaded to.
     pub srcdest: PathBuf,
     /// The directory the build package is created in.
@@ -349,8 +350,6 @@ impl Config {
     }
 
     fn load(config: Option<PathBuf>) -> Result<Self> {
-        umask(Mode::from_bits_truncate(0o022));
-
         let mut load_local = true;
         let mut conf_files = Vec::new();
         let mut lints = Vec::new();
@@ -532,6 +531,7 @@ impl Config {
 
         let srcdir = builddir.join("src");
         let pkgdir = builddir.join("pkg");
+        let srcpkgdir = builddir.join("srcpkg").join(&pkgbuild.pkgbase);
 
         let pkgdest = self.pkgdest.as_ref().map_or_else(|| &startdir, |dir| dir);
         let srcdest = self.srcdest.as_ref().map_or_else(|| &startdir, |dir| dir);
@@ -550,6 +550,7 @@ impl Config {
             builddir,
             srcdir,
             pkgdir,
+            srcpkgdir,
             pkgdest,
             srcdest,
             srcpkgdest,
