@@ -1,5 +1,10 @@
 use std::{
-    fs::File, io::Write, mem::replace, path::PathBuf, result::Result as StdResult, time::Duration,
+    fs::File,
+    io::{Seek, SeekFrom, Write},
+    mem::replace,
+    path::PathBuf,
+    result::Result as StdResult,
+    time::Duration,
 };
 
 use curl::{
@@ -11,7 +16,7 @@ use crate::{
     callback::Event,
     config::PkgbuildDirs,
     error::{Context, DownloadError, IOContext, IOErrorExt, Result},
-    fs::{open, rename, rm_file},
+    fs::{open, rename},
     pkgbuild::Source,
     Makepkg,
 };
@@ -42,6 +47,19 @@ impl<'a> Handler for Handle<'a> {
     fn progress(&mut self, dltotal: f64, dlnow: f64, _ultotal: f64, _ulnow: f64) -> bool {
         self.makepkg.progress(self.source.clone(), dltotal, dlnow);
         true
+    }
+
+    fn seek(&mut self, seek: SeekFrom) -> curl::easy::SeekResult {
+        let err = self.file.seek(seek).context(
+            Context::RetrieveSources,
+            IOContext::Seek(self.temp_path.clone()),
+        );
+        if let Err(err) = err {
+            self.err = Err(err.into());
+            curl::easy::SeekResult::Fail
+        } else {
+            curl::easy::SeekResult::Ok
+        }
     }
 }
 
@@ -78,13 +96,6 @@ impl Makepkg {
             }
         }
 
-        for handle in &handles {
-            let context = handle.get_ref();
-            if context.temp_path.exists() {
-                rm_file(&context.temp_path, Context::RetrieveSources)?;
-            }
-        }
-
         drop(handles);
         Ok(())
     }
@@ -101,8 +112,11 @@ impl Makepkg {
             temp_path.set_extension("part");
         }
         let mut file = File::options();
-        file.create(true).truncate(true).write(true);
-        let file = open(&file, &temp_path, Context::RetrieveSources)?;
+        file.create(true).write(true);
+        let mut file = open(&file, &temp_path, Context::RetrieveSources)?;
+        let len = file
+            .seek(SeekFrom::End(0))
+            .context(Context::RetrieveSources, IOContext::Seek(temp_path.clone()))?;
         let mut curl = Easy2::new(Handle {
             makepkg: self,
             file,
@@ -112,6 +126,7 @@ impl Makepkg {
             err: Ok(()),
         });
         curl_set_ops(&mut curl, source)?;
+        curl.resume_from(len)?;
         Ok(curl)
     }
 }

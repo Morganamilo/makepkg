@@ -16,11 +16,12 @@ use crate::{
     installation_variables::MAKEPKG_CONFIG_PATH,
     pkgbuild::{Options, Package, Pkgbuild, Source},
     raw::RawConfig,
+    sources::VCSKind,
 };
 
-#[derive(Debug, Default, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct VCSClient {
-    pub protocol: String,
+    pub protocol: VCSKind,
     pub package: String,
 }
 
@@ -32,8 +33,10 @@ impl FromStr for VCSClient {
             input: s.to_string(),
         })?;
 
+        let protocol = proto.parse()?;
+
         let agent = Self {
-            protocol: proto.to_string(),
+            protocol,
             package: package.to_string(),
         };
 
@@ -41,7 +44,7 @@ impl FromStr for VCSClient {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct DownloadAgent {
     pub protocol: String,
     pub command: String,

@@ -1,12 +1,12 @@
-use std::{collections::BTreeMap, process::Command};
+use std::collections::BTreeMap;
 
 pub use vcs::*;
 
 use crate::{
     callback::Event,
-    config::{DownloadAgent, PkgbuildDirs, VCSClient},
-    error::{CommandErrorExt, Context, DownloadError, IOContext, IOErrorExt, Result},
-    fs::{make_link, mkdir, rm_file, set_time},
+    config::{DownloadAgent, PkgbuildDirs},
+    error::{Context, DownloadError, IOContext, IOErrorExt, Result},
+    fs::{mkdir, set_time},
     options::Options,
     pkgbuild::{Function, Pkgbuild, Source},
     Makepkg,
@@ -33,19 +33,10 @@ impl Makepkg {
 
         mkdir(&dirs.srcdest, Context::RetrieveSources)?;
 
-        let (mut downloads, vcs_downloads) = self.get_downloads(pkgbuild, &dirs, all)?;
+        let (downloads, vcs_downloads, curl_downloads) =
+            self.get_downloads(pkgbuild, &dirs, all)?;
 
-        if let Some(curl) = downloads
-            .keys()
-            .copied()
-            .find(|a| a.command.rsplit('/').next().unwrap() == "curl")
-        {
-            let curl = curl.clone();
-            let sources = downloads.remove(&curl).unwrap();
-
-            self.download_curl_sources(&dirs, sources)?;
-        }
-
+        self.download_curl_sources(&dirs, curl_downloads)?;
         self.download_file(&dirs, &downloads)?;
         self.download_vcs(&dirs, options, pkgbuild, &vcs_downloads)?;
 
@@ -63,8 +54,8 @@ impl Makepkg {
             }
 
             for source in &source.values {
-                match source.vcs_proto() {
-                    Some(_) => self.extract_vcs(&dirs, source)?,
+                match source.vcs_kind() {
+                    Some(vcs) => self.extract_vcs(&dirs, vcs, source)?,
                     _ => self.extract_file(&dirs, source, &pkgbuild.noextract)?,
                 }
             }
@@ -88,48 +79,6 @@ impl Makepkg {
         Ok(())
     }
 
-    fn extract_file(
-        &self,
-        dirs: &PkgbuildDirs,
-        source: &Source,
-        no_extract: &[String],
-    ) -> Result<()> {
-        let srcdestfile = dirs.download_path(source);
-        let srcfile = dirs.srcdir.join(source.file_name());
-        if srcfile.exists() {
-            rm_file(&srcfile, Context::ExtractSources)?;
-        }
-
-        make_link(&srcdestfile, &srcfile, Context::ExtractSources)?;
-
-        if no_extract.iter().any(|s| s == source.file_name()) {
-            self.event(Event::NoExtact(source.file_name().to_string()));
-            return Ok(());
-        }
-
-        // TODO more tarball kinds
-        let supported = Command::new("bsdtar")
-            .arg("-tf")
-            .arg(&srcfile)
-            .output()
-            .ok()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-
-        if supported {
-            self.event(Event::Extacting(source.file_name().to_string()));
-            let mut command = Command::new("bsdtar");
-            command
-                .arg("-xf")
-                .arg(&srcfile)
-                .current_dir(&dirs.srcdir)
-                .status()
-                .cmd_context(&command, Context::ExtractSources)?;
-        }
-
-        Ok(())
-    }
-
     fn get_downloads<'a>(
         &'a self,
         pkgbuild: &'a Pkgbuild,
@@ -137,10 +86,12 @@ impl Makepkg {
         all: bool,
     ) -> Result<(
         BTreeMap<&'a DownloadAgent, Vec<&'a Source>>,
-        BTreeMap<&'a VCSClient, Vec<&'a Source>>,
+        BTreeMap<VCSKind, Vec<&'a Source>>,
+        Vec<&'a Source>,
     )> {
         let mut downloads: BTreeMap<&DownloadAgent, Vec<&Source>> = BTreeMap::new();
-        let mut vcs_downloads: BTreeMap<&VCSClient, Vec<&Source>> = BTreeMap::new();
+        let mut vcs_downloads: BTreeMap<VCSKind, Vec<&Source>> = BTreeMap::new();
+        let mut curl = Vec::new();
 
         let all_sources = if all {
             pkgbuild.source.all().collect::<Vec<_>>()
@@ -158,7 +109,7 @@ impl Makepkg {
         for source in all_sources {
             let path = dirs.download_path(source);
 
-            if let Some(tool) = self.get_vcs_tool(source) {
+            if let Some(tool) = source.vcs_kind() {
                 vcs_downloads.entry(tool).or_default().push(source);
             } else if path.exists() {
                 self.event(Event::FoundSource(source.file_name().to_string()));
@@ -166,13 +117,27 @@ impl Makepkg {
             } else if !source.is_remote() {
                 return Err(DownloadError::SourceMissing(source.clone()).into());
             } else if let Some(tool) = self.get_download_tool(source) {
-                downloads.entry(tool).or_default().push(source);
+                if tool.command.rsplit('/').next().unwrap() == "curl" {
+                    curl.push(source);
+                } else {
+                    downloads.entry(tool).or_default().push(source);
+                }
+            } else if self.curl_supports(source) {
+                curl.push(source);
             } else {
                 return Err(DownloadError::UnknownProtocol(source.clone()).into());
             }
         }
 
-        Ok((downloads, vcs_downloads))
+        Ok((downloads, vcs_downloads, curl))
+    }
+
+    fn curl_supports(&self, source: &Source) -> bool {
+        let Some(protocol) = source.protocol() else {
+            return false;
+        };
+
+        ::curl::Version::get().protocols().any(|p| p == protocol)
     }
 
     fn get_download_tool(&self, source: &Source) -> Option<&DownloadAgent> {

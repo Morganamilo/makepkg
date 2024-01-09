@@ -4,7 +4,7 @@ use crate::{
     callback::Event,
     config::{DownloadAgent, PkgbuildDirs},
     error::{CommandErrorExt, Context, Result},
-    fs::rename,
+    fs::{make_link, rename, rm_file},
     pkgbuild::Source,
     Makepkg,
 };
@@ -43,6 +43,48 @@ impl Makepkg {
                 rename(&part, &final_path, Context::RetrieveSources)?;
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn extract_file(
+        &self,
+        dirs: &PkgbuildDirs,
+        source: &Source,
+        no_extract: &[String],
+    ) -> Result<()> {
+        let srcdestfile = dirs.download_path(source);
+        let srcfile = dirs.srcdir.join(source.file_name());
+        if srcfile.exists() {
+            rm_file(&srcfile, Context::ExtractSources)?;
+        }
+
+        make_link(&srcdestfile, &srcfile, Context::ExtractSources)?;
+
+        if no_extract.iter().any(|s| s == source.file_name()) {
+            self.event(Event::NoExtact(source.file_name().to_string()));
+            return Ok(());
+        }
+
+        // TODO more tarball kinds
+        let supported = Command::new("bsdtar")
+            .arg("-tf")
+            .arg(&srcfile)
+            .output()
+            .ok()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
+        if supported {
+            self.event(Event::Extacting(source.file_name().to_string()));
+            let mut command = Command::new("bsdtar");
+            command
+                .arg("-xf")
+                .arg(&srcfile)
+                .current_dir(&dirs.srcdir)
+                .status()
+                .cmd_context(&command, Context::ExtractSources)?;
+        }
+
         Ok(())
     }
 }

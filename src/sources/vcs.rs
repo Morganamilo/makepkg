@@ -1,8 +1,8 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 
 use crate::{
-    config::{PkgbuildDirs, VCSClient},
-    error::{DownloadError, Result},
+    config::PkgbuildDirs,
+    error::{Result, VCSClientError},
     pkgbuild::{Pkgbuild, Source},
     Makepkg, Options,
 };
@@ -34,28 +34,40 @@ impl VCSKind {
     }
 }
 
-impl Source {
-    pub fn vcs_proto(&self) -> Option<VCSKind> {
-        match self.protocol() {
-            Some("git") => Some(VCSKind::Git),
-            Some("svn") => Some(VCSKind::SVN),
-            Some("hg") => Some(VCSKind::Mercurial),
-            Some("fossil") => Some(VCSKind::Fossil),
-            Some("bzr") => Some(VCSKind::BZR),
-            _ => None,
+impl FromStr for VCSKind {
+    type Err = VCSClientError;
+
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        match s {
+            "git" => Ok(VCSKind::Git),
+            "svn" => Ok(VCSKind::SVN),
+            "hg" => Ok(VCSKind::Mercurial),
+            "fossil" => Ok(VCSKind::Fossil),
+            "bzr" => Ok(VCSKind::BZR),
+            _ => Err(VCSClientError { input: s.into() }),
         }
     }
 }
 
+impl Source {
+    pub fn vcs_kind(&self) -> Option<VCSKind> {
+        self.protocol().and_then(|p| p.parse().ok())
+    }
+}
+
 impl Makepkg {
-    pub(crate) fn extract_vcs(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
-        match source.protocol() {
-            Some("git") => self.extract_git(dirs, source),
-            Some("svn") => self.extract_svn(dirs, source),
-            Some("hg") => self.extract_hg(dirs, source),
-            Some("fossil") => self.extract_fossil(dirs, source),
-            Some("bzr") => self.extract_bzr(dirs, source),
-            _ => return Err(DownloadError::UnknownVCSClient(source.clone()).into()),
+    pub(crate) fn extract_vcs(
+        &self,
+        dirs: &PkgbuildDirs,
+        vcs: VCSKind,
+        source: &Source,
+    ) -> Result<()> {
+        match vcs {
+            VCSKind::Git => self.extract_git(dirs, source),
+            VCSKind::SVN => self.extract_svn(dirs, source),
+            VCSKind::Mercurial => self.extract_hg(dirs, source),
+            VCSKind::Fossil => self.extract_fossil(dirs, source),
+            VCSKind::BZR => self.extract_bzr(dirs, source),
         }
     }
 
@@ -64,29 +76,19 @@ impl Makepkg {
         dirs: &PkgbuildDirs,
         options: &Options,
         _pkgbuild: &Pkgbuild,
-        sources: &BTreeMap<&VCSClient, Vec<&Source>>,
+        sources: &BTreeMap<VCSKind, Vec<&Source>>,
     ) -> Result<()> {
-        for (client, sources) in sources {
+        for (vcs, sources) in sources {
             for &source in sources {
-                match client.protocol.as_str() {
-                    "git" => self.download_git(dirs, options, source)?,
-                    "svn" => self.download_svn(dirs, options, source)?,
-                    "hg" => self.download_hg(dirs, options, source)?,
-                    "fossil" => self.download_fossil(dirs, options, source)?,
-                    "bzr" => self.download_bzr(dirs, options, source)?,
-                    _ => return Err(DownloadError::UnknownVCSClient(source.clone()).into()),
+                match vcs {
+                    VCSKind::Git => self.download_git(dirs, options, source)?,
+                    VCSKind::SVN => self.download_svn(dirs, options, source)?,
+                    VCSKind::Mercurial => self.download_hg(dirs, options, source)?,
+                    VCSKind::Fossil => self.download_fossil(dirs, options, source)?,
+                    VCSKind::BZR => self.download_bzr(dirs, options, source)?,
                 }
             }
         }
         Ok(())
-    }
-
-    pub(crate) fn get_vcs_tool(&self, source: &Source) -> Option<&VCSClient> {
-        let download_proto = source.protocol()?;
-
-        self.config
-            .vcs_agents
-            .iter()
-            .find(|a| a.protocol == download_proto)
     }
 }
