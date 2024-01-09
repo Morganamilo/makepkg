@@ -21,12 +21,12 @@ impl Makepkg {
         let repopath = dirs.srcdest.join(source.file_name());
         let mut url = source.url.to_string();
 
-        if source.protocol().as_deref() == Some("ssh") {
+        if source.protocol() == Some("ssh") {
             url = format!("bzr+{}", url);
         }
 
         if !repopath.exists() {
-            self.event(Event::DownloadingVCS(VCSKind::BZR, source.clone()));
+            self.event(Event::DownloadingVCS(VCSKind::Bzr, source.clone()));
 
             let mut command = Command::new("bzr");
             command
@@ -38,7 +38,7 @@ impl Makepkg {
                 .status()
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
-            self.event(Event::UpdatingVCS(VCSKind::BZR, source.clone()));
+            self.event(Event::UpdatingVCS(VCSKind::Bzr, source.clone()));
 
             let mut command = Command::new("bzr");
             command
@@ -53,7 +53,7 @@ impl Makepkg {
     }
 
     pub fn extract_bzr(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
-        self.event(Event::ExtractingVCS(VCSKind::BZR, source.clone()));
+        self.event(Event::ExtractingVCS(VCSKind::Bzr, source.clone()));
 
         let srcpath = dirs.srcdir.join(source.file_name());
         let repopath = dirs.download_path(source);
@@ -64,7 +64,7 @@ impl Makepkg {
             Some(f) => {
                 return Err(DownloadError::UnsupportedFragment(
                     source.clone(),
-                    VCSKind::BZR,
+                    VCSKind::Bzr,
                     f.clone(),
                 )
                 .into());
@@ -137,12 +137,10 @@ impl Makepkg {
                 Ok(hash)
             }
             Some(f) => {
-                return Err(DownloadError::UnsupportedFragment(
-                    source.clone(),
-                    VCSKind::BZR,
-                    f.clone(),
+                Err(
+                    DownloadError::UnsupportedFragment(source.clone(), VCSKind::Bzr, f.clone())
+                        .into(),
                 )
-                .into());
             }
             None => Ok("SKIP".to_string()),
         }

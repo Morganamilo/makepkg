@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 pub use vcs::*;
 
+type SourceMap<'a, T> = BTreeMap<T, Vec<&'a Source>>;
+
 use crate::{
     callback::Event,
     config::{DownloadAgent, PkgbuildDirs},
@@ -85,12 +87,12 @@ impl Makepkg {
         dirs: &PkgbuildDirs,
         all: bool,
     ) -> Result<(
-        BTreeMap<&'a DownloadAgent, Vec<&'a Source>>,
-        BTreeMap<VCSKind, Vec<&'a Source>>,
+        SourceMap<&'a DownloadAgent>,
+        SourceMap<VCSKind>,
         Vec<&'a Source>,
     )> {
-        let mut downloads: BTreeMap<&DownloadAgent, Vec<&Source>> = BTreeMap::new();
-        let mut vcs_downloads: BTreeMap<VCSKind, Vec<&Source>> = BTreeMap::new();
+        let mut downloads: SourceMap<&DownloadAgent> = BTreeMap::new();
+        let mut vcs_downloads: SourceMap<VCSKind> = BTreeMap::new();
         let mut curl = Vec::new();
 
         let all_sources = if all {

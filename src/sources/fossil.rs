@@ -76,7 +76,7 @@ impl Makepkg {
                     .lines()
                     .find(|l| l.starts_with("repository:"))
                     .map(|l| {
-                        l.splitn(2, |c| char::is_whitespace(c))
+                        l.splitn(2, char::is_whitespace)
                             .last()
                             .unwrap()
                             .trim_start()

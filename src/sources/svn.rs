@@ -23,7 +23,7 @@ impl Makepkg {
         let mut url = source.url.to_string();
         let mut svnref = "HEAD".to_string();
 
-        if source.protocol().as_deref() == Some("ssh") {
+        if source.protocol() == Some("ssh") {
             url = format!("ssh+{}", url);
         }
 
@@ -32,7 +32,7 @@ impl Makepkg {
             Some(f) => {
                 return Err(DownloadError::UnsupportedFragment(
                     source.clone(),
-                    VCSKind::SVN,
+                    VCSKind::Svn,
                     f.clone(),
                 )
                 .into());
@@ -41,7 +41,7 @@ impl Makepkg {
         }
 
         if !repopath.exists() {
-            self.event(Event::DownloadingVCS(VCSKind::SVN, source.clone()));
+            self.event(Event::DownloadingVCS(VCSKind::Svn, source.clone()));
 
             let dir = repopath.join(format!(".{}", TOOL_NAME));
             mkdir(&repopath, Context::RetrieveSources)?;
@@ -60,7 +60,7 @@ impl Makepkg {
                 .status()
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
-            self.event(Event::UpdatingVCS(VCSKind::SVN, source.clone()));
+            self.event(Event::UpdatingVCS(VCSKind::Svn, source.clone()));
 
             let mut command = Command::new("svn");
             command
@@ -76,11 +76,11 @@ impl Makepkg {
     }
 
     pub(crate) fn extract_svn(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
-        self.event(Event::ExtractingVCS(VCSKind::SVN, source.clone()));
+        self.event(Event::ExtractingVCS(VCSKind::Svn, source.clone()));
 
         let repopath = dirs.download_path(source);
         let srcrepopath = dirs.srcdir.join(source.file_name());
-        mkdir(&srcrepopath, Context::ExtractSources)?;
+        mkdir(srcrepopath, Context::ExtractSources)?;
 
         // Walk through all files / dirs in the cloned repo as we cannot directly `cp -r`, instead copy individually
         for file in WalkDir::new(&repopath) {

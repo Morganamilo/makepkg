@@ -18,7 +18,7 @@ impl Makepkg {
         let repopath = dirs.download_path(source);
         let mut url = source.url.to_string();
 
-        if source.protocol().as_deref() == Some("ssh") {
+        if source.protocol() == Some("ssh") {
             url = format!("ssh+{}", url);
         }
 

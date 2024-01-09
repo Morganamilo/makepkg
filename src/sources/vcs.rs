@@ -10,10 +10,10 @@ use crate::{
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VCSKind {
     Git,
-    SVN,
+    Svn,
     Mercurial,
     Fossil,
-    BZR,
+    Bzr,
 }
 
 impl Display for VCSKind {
@@ -26,10 +26,10 @@ impl VCSKind {
     pub fn name(&self) -> &'static str {
         match self {
             VCSKind::Git => "git",
-            VCSKind::SVN => "svn",
+            VCSKind::Svn => "svn",
             VCSKind::Mercurial => "hg",
             VCSKind::Fossil => "fossil",
-            VCSKind::BZR => "bzr",
+            VCSKind::Bzr => "bzr",
         }
     }
 }
@@ -40,10 +40,10 @@ impl FromStr for VCSKind {
     fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
         match s {
             "git" => Ok(VCSKind::Git),
-            "svn" => Ok(VCSKind::SVN),
+            "svn" => Ok(VCSKind::Svn),
             "hg" => Ok(VCSKind::Mercurial),
             "fossil" => Ok(VCSKind::Fossil),
-            "bzr" => Ok(VCSKind::BZR),
+            "bzr" => Ok(VCSKind::Bzr),
             _ => Err(VCSClientError { input: s.into() }),
         }
     }
@@ -64,10 +64,10 @@ impl Makepkg {
     ) -> Result<()> {
         match vcs {
             VCSKind::Git => self.extract_git(dirs, source),
-            VCSKind::SVN => self.extract_svn(dirs, source),
+            VCSKind::Svn => self.extract_svn(dirs, source),
             VCSKind::Mercurial => self.extract_hg(dirs, source),
             VCSKind::Fossil => self.extract_fossil(dirs, source),
-            VCSKind::BZR => self.extract_bzr(dirs, source),
+            VCSKind::Bzr => self.extract_bzr(dirs, source),
         }
     }
 
@@ -82,10 +82,10 @@ impl Makepkg {
             for &source in sources {
                 match vcs {
                     VCSKind::Git => self.download_git(dirs, options, source)?,
-                    VCSKind::SVN => self.download_svn(dirs, options, source)?,
+                    VCSKind::Svn => self.download_svn(dirs, options, source)?,
                     VCSKind::Mercurial => self.download_hg(dirs, options, source)?,
                     VCSKind::Fossil => self.download_fossil(dirs, options, source)?,
-                    VCSKind::BZR => self.download_bzr(dirs, options, source)?,
+                    VCSKind::Bzr => self.download_bzr(dirs, options, source)?,
                 }
             }
         }

@@ -17,3 +17,9 @@ pub struct Options {
     pub no_archive: bool,
     pub hold_ver: bool,
 }
+
+impl Options {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}

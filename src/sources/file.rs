@@ -58,7 +58,7 @@ impl Makepkg {
             rm_file(&srcfile, Context::ExtractSources)?;
         }
 
-        make_link(&srcdestfile, &srcfile, Context::ExtractSources)?;
+        make_link(srcdestfile, &srcfile, Context::ExtractSources)?;
 
         if no_extract.iter().any(|s| s == source.file_name()) {
             self.event(Event::NoExtact(source.file_name().to_string()));

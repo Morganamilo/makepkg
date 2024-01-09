@@ -703,7 +703,7 @@ fn set_overridde_flag(package: &mut Package, var: &Variable) {
 mod test {
     use ansi_term::{Color, Style};
 
-    use crate::{CallBacks, Event, LogLevel, LogMessage, Makepkg};
+    use crate::{CallBacks, Event, LogLevel, LogMessage, Makepkg, Options};
 
     use super::*;
 
@@ -767,19 +767,19 @@ mod test {
     #[test]
     fn geninteg() {
         let config = Makepkg::new().unwrap().callback(PrettyPrinter);
-        let mut options = crate::options::Options::default();
+        let mut options = Options::new();
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
-        let mut pkgbuild = Pkgbuild::from_path("../makepkg-test").unwrap();
-        let res = config.geninteg(&options, &mut pkgbuild).unwrap();
+        let pkgbuild = Pkgbuild::from_path("../makepkg-test").unwrap();
+        let res = config.geninteg(&options, &pkgbuild).unwrap();
         println!("{}", res);
     }
 
     #[test]
     fn lint_pkgbuild() {
         let config = Makepkg::new().unwrap().callback(PrettyPrinter);
-        let mut options = crate::options::Options::default();
+        let mut options = Options::new();
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
