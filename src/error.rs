@@ -289,7 +289,7 @@ impl Display for Context {
 pub enum IOContext {
     HashFile(PathBuf),
     WriteDownload(String),
-    WriteStdout,
+    WriteBuffer,
     Mkdir(PathBuf),
     Open(PathBuf),
     Seek(PathBuf),
@@ -323,7 +323,7 @@ impl Display for IOContext {
             IOContext::WriteDownload(p) => {
                 write!(f, "unable to write to download file  {}", p)
             }
-            IOContext::WriteStdout => write!(f, "unable to write to stdout"),
+            IOContext::WriteBuffer => write!(f, "write"),
             IOContext::Mkdir(p) => write!(f, "mkdir {}", p.display()),
             IOContext::Open(p) => write!(f, "open {}", p.display()),
             IOContext::Seek(p) => write!(f, "seek {}", p.display()),

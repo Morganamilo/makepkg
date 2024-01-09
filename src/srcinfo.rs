@@ -9,7 +9,7 @@ use crate::{
 macro_rules! writeln {
     ($dst:expr, $($arg:tt)*) => {
         std::writeln!($dst, $($arg)*)
-                    .context(Context::GenerateSrcinfo, IOContext::WriteStdout)
+                    .context(Context::GenerateSrcinfo, IOContext::WriteBuffer)
     };
 }
 
@@ -105,10 +105,10 @@ impl Pkgbuild {
         Ok(())
     }
 
-    pub fn to_srcinfo_lossy(&self) -> String {
+    pub fn srcinfo(&self) -> String {
         let mut s = Vec::new();
         self.write_srcinfo(&mut s).unwrap();
-        String::from_utf8_lossy(&s).to_string()
+        String::from_utf8(s).unwrap()
     }
 
     pub fn write_srcinfo<W: Write>(&self, w: &mut W) -> Result<()> {
