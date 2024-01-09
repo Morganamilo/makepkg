@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, ErrorKind, Read, stdout, Write},
+    io::{self, stdout, ErrorKind, Read, Write},
     ops::Deref,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
     path::Path,
@@ -18,11 +18,11 @@ use crate::{
     error::{CommandError, CommandErrorExt, Context, IOContext, IOError, IOErrorExt, Result},
     fs::open,
     installation_variables::FAKEROOT_LIBDIRS,
-    Makepkg,
     makepkg::FakeRoot,
     options::Options,
     pkgbuild::{Function, Pkgbuild},
     raw::PKGBUILD_SCRIPT,
+    Makepkg,
 };
 
 fn pipe(function: &str) -> Result<(OwnedFd, OwnedFd)> {
@@ -254,7 +254,7 @@ impl Makepkg {
                                     &command,
                                     Context::RunFunction(function.to_string()),
                                 )
-                                    .into());
+                                .into());
                             }
                         }
                     }
@@ -294,7 +294,7 @@ impl Makepkg {
                 IOContext::FindLibfakeroot(FAKEROOT_LIBDIRS.split(':').map(Into::into).collect()),
                 io::ErrorKind::Other,
             )
-                .into());
+            .into());
         }
 
         let mut key = [0; 50];
