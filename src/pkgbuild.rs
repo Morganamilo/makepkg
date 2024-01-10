@@ -823,13 +823,12 @@ mod test {
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
-        options.no_build = true;
+        //options.no_build = true;
         let mut pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
         println!("{}", makepkg.geninteg(&options, &pkgbuild).unwrap());
         for pkg in makepkg.config.package_list(&pkgbuild).unwrap() {
             println!(" --- {}", pkg.display());
         }
-        //let res = config.build(&options, &mut pkgbuild);
         let res = makepkg.build(&options, &mut pkgbuild);
 
         match res {

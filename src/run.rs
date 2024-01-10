@@ -2,14 +2,9 @@ use std::{
     fs::File,
     io::{self, stdout, ErrorKind, Read, Write},
     ops::Deref,
-    os::fd::{AsRawFd, FromRawFd, OwnedFd},
+    os::{fd::OwnedFd, unix::net::UnixStream},
     path::Path,
     process::{Command, Stdio},
-};
-
-use nix::{
-    fcntl::{fcntl, FcntlArg, OFlag},
-    unistd::{self, close},
 };
 
 use crate::{
@@ -28,12 +23,12 @@ use crate::{
     Makepkg,
 };
 
-fn pipe(function: &str) -> Result<(OwnedFd, OwnedFd)> {
+fn pipe(function: &str) -> Result<(UnixStream, UnixStream)> {
     let (r, w) =
-        unistd::pipe().context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
-    fcntl(r, FcntlArg::F_SETFL(OFlag::O_NONBLOCK))
+        UnixStream::pair().context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
+    r.set_nonblocking(true)
         .context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
-    unsafe { Ok((OwnedFd::from_raw_fd(r), OwnedFd::from_raw_fd(w))) }
+    Ok((r, w))
 }
 
 impl Makepkg {
@@ -127,6 +122,9 @@ impl Makepkg {
     ) -> Result<String> {
         self.event(Event::RunningFunction(function.to_string()));
 
+        let pkgbase = pkgbuild.pkgbase.as_str();
+        let pkgdir = &dirs.pkgdir.join(pkgname.unwrap_or(pkgbase));
+
         let mut command = Command::new("bash");
         command
             .arg("--noprofile")
@@ -140,36 +138,29 @@ impl Makepkg {
             .env("CARCH", &self.config.arch)
             .env("startdir", &dirs.startdir)
             .env("srcdir", &dirs.srcdir)
-            .env(
-                "pkgdir",
-                &dirs
-                    .pkgdir
-                    .join(pkgname.unwrap_or(pkgbuild.pkgbase.as_str())),
-            )
+            .env("pkgdir", pkgdir)
             .current_dir(&dirs.startdir)
             .stdin(Stdio::piped());
 
         if matches!(function, "build" | "check") || function.starts_with("package") {
             self.build_env(dirs, pkgbuild, &mut command);
         }
-
         if function.starts_with("package") {
             self.fakeroot_env(&mut command)?;
         }
-
         if let Some(pkgname) = pkgname {
             command.arg(pkgname);
         }
 
-        let logfile = dirs.logdest.join(format!(
-            "{}-{}-{}-{}.log",
-            pkgbuild.pkgbase,
-            pkgbuild.version(),
-            self.config.arch,
-            function,
-        ));
-
         let mut logfile = if options.log {
+            let logfile = dirs.logdest.join(format!(
+                "{}-{}-{}-{}.log",
+                pkgbuild.pkgbase,
+                pkgbuild.version(),
+                self.config.arch,
+                function,
+            ));
+
             let mut file = File::options();
             let file = file.create(true).truncate(true).write(true);
             let file = open(file, logfile, Context::RunFunction(function.to_string()))?;
@@ -178,45 +169,31 @@ impl Makepkg {
             None
         };
 
-        let mut reader_count = 0;
-        let mut reader1 = None;
-        let mut reader2 = None;
+        let mut readers = Vec::new();
         let mut output = Vec::new();
         let mut buffer = vec![0; 512];
-        let mut fds = None;
+        let mut buffer = buffer.as_mut_slice();
 
-        if options.log || capture_output {
+        if capture_output {
             let (read1, write1) = pipe(function)?;
-            let read1 = File::from(read1);
-
-            if !capture_output {
-                let write2 = write1
-                    .try_clone()
-                    .context(Context::RunFunction(function.to_string()), IOContext::Dup)?;
-                fds = Some((write1.as_raw_fd(), write2.as_raw_fd()));
-                command.stderr(write2);
-            } else {
-                let (read2, write2) = pipe(function)?;
-                let read2 = File::from(read2);
-                fds = Some((write1.as_raw_fd(), write2.as_raw_fd()));
-                command.stderr(write2);
-                reader2 = Some(read2);
-                reader_count += 1;
-            }
-
-            command.stdout(write1);
-            reader1 = Some(read1);
-            reader_count += 1;
+            let (read2, write2) = pipe(function)?;
+            command.stdout(OwnedFd::from(write1));
+            command.stderr(OwnedFd::from(write2));
+            readers.push((read1, true));
+            readers.push((read2, false));
+        } else if options.log {
+            let (read1, write1) = pipe(function)?;
+            let write2 = write1
+                .try_clone()
+                .context(Context::RunFunction(function.to_string()), IOContext::Dup)?;
+            command.stdout(OwnedFd::from(write1));
+            command.stderr(OwnedFd::from(write2));
+            readers.push((read1, false));
         }
 
         let mut child = command
             .spawn()
             .cmd_context(&command, Context::RunFunction(function.to_string()))?;
-
-        if let Some((fd1, fd2)) = fds {
-            let _ = close(fd1);
-            let _ = close(fd2);
-        }
 
         let mut stdin = child.stdin.take().unwrap();
 
@@ -224,51 +201,42 @@ impl Makepkg {
             .write_all(PKGBUILD_SCRIPT.as_bytes())
             .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
-        drop(stdin);
-
         let mut stdout = stdout().lock();
+        drop(stdin);
+        command.stdout(Stdio::null());
+        command.stderr(Stdio::null());
 
-        if reader1.is_some() {
-            loop {
-                let mut done = 0;
-                let readers = [&mut reader1, &mut reader2];
-                for (i, reader) in readers.into_iter().flatten().enumerate() {
-                    loop {
-                        match reader.read(&mut buffer) {
-                            Ok(0) => {
-                                done += 1;
-                                break;
-                            }
-                            Ok(n) => {
-                                if i == 0 && capture_output {
-                                    output.extend(&buffer[..n]);
-                                }
-                                if let Some(log) = &mut logfile {
-                                    log.write_all(&buffer[..n]).cmd_context(
-                                        &command,
-                                        Context::RunFunction(function.to_string()),
-                                    )?;
-                                }
-                                stdout.write_all(&buffer[..n]).cmd_context(
-                                    &command,
-                                    Context::RunFunction(function.to_string()),
-                                )?;
-                            }
-                            Err(e) if e.kind() == ErrorKind::WouldBlock => break,
-                            Err(e) => {
-                                return Err(CommandError::exec(
-                                    e,
-                                    &command,
-                                    Context::RunFunction(function.to_string()),
-                                )
-                                .into());
-                            }
-                        }
+        while !readers.is_empty() {
+            for (i, (reader, is_stdout)) in readers.iter_mut().enumerate() {
+                match reader.read(&mut buffer) {
+                    Ok(0) => {
+                        readers.remove(i);
+                        break;
                     }
-                }
+                    Ok(n) => {
+                        if *is_stdout && capture_output {
+                            output.extend(&buffer[..n]);
+                        }
+                        if let Some(log) = &mut logfile {
+                            log.write_all(&buffer[..n]).cmd_context(
+                                &command,
+                                Context::RunFunction(function.to_string()),
+                            )?;
+                        }
 
-                if done == reader_count {
-                    break;
+                        stdout
+                            .write_all(&buffer[..n])
+                            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
+                    }
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => continue,
+                    Err(e) => {
+                        return Err(CommandError::exec(
+                            e,
+                            &command,
+                            Context::RunFunction(function.to_string()),
+                        )
+                        .into());
+                    }
                 }
             }
         }
