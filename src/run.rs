@@ -2,18 +2,23 @@ use std::{
     fs::File,
     io::{self, stdout, ErrorKind, Read, Write},
     ops::Deref,
-    os::{fd::OwnedFd, unix::net::UnixStream},
+    os::{
+        fd::{AsRawFd, OwnedFd},
+        unix::net::UnixStream,
+    },
     path::Path,
     process::{Command, Stdio},
+};
+
+use nix::{
+    errno::Errno,
+    poll::{poll, PollFd, PollFlags},
 };
 
 use crate::{
     callback::Event,
     config::PkgbuildDirs,
-    error::{
-        CommandError, CommandErrorExt, CommandOutputExt, Context, IOContext, IOError, IOErrorExt,
-        Result,
-    },
+    error::{CommandErrorExt, CommandOutputExt, Context, IOContext, IOError, IOErrorExt, Result},
     fs::open,
     installation_variables::FAKEROOT_LIBDIRS,
     makepkg::FakeRoot,
@@ -28,6 +33,7 @@ fn pipe(function: &str) -> Result<(UnixStream, UnixStream)> {
         UnixStream::pair().context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
     r.set_nonblocking(true)
         .context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
+
     Ok((r, w))
 }
 
@@ -42,7 +48,6 @@ impl Makepkg {
             options,
             &dirs,
             pkgbuild,
-            &dirs.srcdir,
             None,
             Function::Pkgver.name(),
             true,
@@ -62,11 +67,6 @@ impl Makepkg {
             return Ok(());
         }
 
-        let workingdir = match function {
-            Function::Verify => dirs.startdir.as_path(),
-            _ => dirs.srcdir.as_path(),
-        };
-
         if function == Function::Package {
             for function in &pkgbuild.package_functions {
                 if function == "package" {
@@ -74,38 +74,19 @@ impl Makepkg {
                         options,
                         &dirs,
                         pkgbuild,
-                        workingdir,
                         Some(pkgbuild.packages[0].pkgname.as_str()),
                         function,
                         false,
                     )?;
                 } else {
                     let pkgname = Some(function.trim_start_matches("package_"));
-                    self.run_function_internal(
-                        options, &dirs, pkgbuild, workingdir, pkgname, function, false,
-                    )?;
+                    self.run_function_internal(options, &dirs, pkgbuild, pkgname, function, false)?;
                 }
             }
         } else if function == Function::Pkgver {
-            self.run_function_internal(
-                options,
-                &dirs,
-                pkgbuild,
-                workingdir,
-                None,
-                function.name(),
-                true,
-            )?;
+            self.run_function_internal(options, &dirs, pkgbuild, None, function.name(), true)?;
         } else {
-            self.run_function_internal(
-                options,
-                &dirs,
-                pkgbuild,
-                workingdir,
-                None,
-                function.name(),
-                false,
-            )?;
+            self.run_function_internal(options, &dirs, pkgbuild, None, function.name(), false)?;
         }
         Ok(())
     }
@@ -115,15 +96,28 @@ impl Makepkg {
         options: &Options,
         dirs: &PkgbuildDirs,
         pkgbuild: &Pkgbuild,
-        workingdir: &Path,
         pkgname: Option<&str>,
         function: &str,
         capture_output: bool,
     ) -> Result<String> {
         self.event(Event::RunningFunction(function.to_string()));
+        //let capture_output = true;
+        let mut options = options.clone();
+        //options.log = true;
+
+        let workingdir = match function {
+            "verify" => dirs.startdir.as_path(),
+            _ => dirs.srcdir.as_path(),
+        };
 
         let pkgbase = pkgbuild.pkgbase.as_str();
+        let version = pkgbuild.version();
         let pkgdir = &dirs.pkgdir.join(pkgname.unwrap_or(pkgbase));
+
+        let mut outputfd = 0;
+        let mut readers = Vec::new();
+        let mut output = Vec::new();
+        let mut buffer = vec![0; 512];
 
         let mut command = Command::new("bash");
         command
@@ -155,10 +149,7 @@ impl Makepkg {
         let mut logfile = if options.log {
             let logfile = dirs.logdest.join(format!(
                 "{}-{}-{}-{}.log",
-                pkgbuild.pkgbase,
-                pkgbuild.version(),
-                self.config.arch,
-                function,
+                pkgbase, version, self.config.arch, function,
             ));
 
             let mut file = File::options();
@@ -169,26 +160,23 @@ impl Makepkg {
             None
         };
 
-        let mut readers = Vec::new();
-        let mut output = Vec::new();
-        let mut buffer = vec![0; 512];
-        let mut buffer = buffer.as_mut_slice();
+        if capture_output || options.log {
+            let (read1, write1) = pipe(function)?;
 
-        if capture_output {
-            let (read1, write1) = pipe(function)?;
-            let (read2, write2) = pipe(function)?;
+            let write2 = if capture_output {
+                let (read2, write2) = pipe(function)?;
+                readers.push(read2);
+                outputfd = read1.as_raw_fd();
+                write2
+            } else {
+                write1
+                    .try_clone()
+                    .context(Context::RunFunction(function.to_string()), IOContext::Dup)?
+            };
+
             command.stdout(OwnedFd::from(write1));
             command.stderr(OwnedFd::from(write2));
-            readers.push((read1, true));
-            readers.push((read2, false));
-        } else if options.log {
-            let (read1, write1) = pipe(function)?;
-            let write2 = write1
-                .try_clone()
-                .context(Context::RunFunction(function.to_string()), IOContext::Dup)?;
-            command.stdout(OwnedFd::from(write1));
-            command.stderr(OwnedFd::from(write2));
-            readers.push((read1, false));
+            readers.push(read1);
         }
 
         let mut child = command
@@ -196,47 +184,56 @@ impl Makepkg {
             .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
         let mut stdin = child.stdin.take().unwrap();
-
         stdin
             .write_all(PKGBUILD_SCRIPT.as_bytes())
             .cmd_context(&command, Context::RunFunction(function.to_string()))?;
 
-        let mut stdout = stdout().lock();
         drop(stdin);
+        let mut stdout = stdout().lock();
         command.stdout(Stdio::null());
         command.stderr(Stdio::null());
 
         while !readers.is_empty() {
-            for (i, (reader, is_stdout)) in readers.iter_mut().enumerate() {
-                match reader.read(&mut buffer) {
-                    Ok(0) => {
-                        readers.remove(i);
-                        break;
-                    }
-                    Ok(n) => {
-                        if *is_stdout && capture_output {
-                            output.extend(&buffer[..n]);
-                        }
-                        if let Some(log) = &mut logfile {
-                            log.write_all(&buffer[..n]).cmd_context(
-                                &command,
-                                Context::RunFunction(function.to_string()),
-                            )?;
-                        }
+            let mut res;
+            let mut pollfds = readers
+                .iter()
+                .map(|fd| PollFd::new(fd, PollFlags::POLLIN))
+                .collect::<Vec<_>>();
 
-                        stdout
-                            .write_all(&buffer[..n])
-                            .cmd_context(&command, Context::RunFunction(function.to_string()))?;
-                    }
-                    Err(e) if e.kind() == ErrorKind::WouldBlock => continue,
-                    Err(e) => {
-                        return Err(CommandError::exec(
-                            e,
-                            &command,
-                            Context::RunFunction(function.to_string()),
-                        )
-                        .into());
-                    }
+            loop {
+                res = poll(&mut pollfds, -1);
+                if !matches!(res, Err(Errno::EAGAIN | Errno::EINTR)) {
+                    break;
+                }
+            }
+
+            res.context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
+
+            let mut events = pollfds
+                .into_iter()
+                .map(|e| e.revents().unwrap())
+                .collect::<Vec<_>>();
+
+            for (i, event) in events.iter_mut().enumerate().rev() {
+                if event.intersects(PollFlags::POLLIN) {
+                    write_output(
+                        &mut readers[i],
+                        &mut buffer,
+                        outputfd,
+                        &mut output,
+                        &mut logfile,
+                        &mut stdout,
+                        event,
+                    )
+                    .context(
+                        Context::RunFunction(function.to_string()),
+                        IOContext::WriteBuffer,
+                    )?;
+                }
+
+                if event.intersects(PollFlags::POLLERR | PollFlags::POLLNVAL | PollFlags::POLLHUP) {
+                    readers.remove(i);
+                    continue;
                 }
             }
         }
@@ -288,5 +285,40 @@ impl Makepkg {
         let newfakeroot = FakeRoot { key, child };
         *fakeroot = Some(newfakeroot);
         Ok(ret)
+    }
+}
+
+fn write_output(
+    sock: &mut UnixStream,
+    buffer: &mut [u8],
+    outputfd: i32,
+    output: &mut Vec<u8>,
+    logfile: &mut Option<File>,
+    stdout: &mut io::StdoutLock<'_>,
+    event: &mut PollFlags,
+) -> io::Result<()> {
+    loop {
+        match sock.read(buffer) {
+            Ok(0) => {
+                *event = PollFlags::POLLERR;
+                return Ok(());
+            }
+            Ok(n) => {
+                stdout.write_all(&buffer[..n])?;
+                if outputfd == sock.as_raw_fd() {
+                    output.extend(&buffer[..n])
+                }
+                if let Some(log) = logfile {
+                    log.write_all(&buffer[..n])?;
+                }
+            }
+            Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                panic!("we should never get this");
+            }
+            Err(e) => return Err(e),
+        }
+        if !event.contains(PollFlags::POLLHUP) {
+            return Ok(());
+        }
     }
 }

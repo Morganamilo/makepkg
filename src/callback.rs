@@ -6,7 +6,7 @@ use std::{
 
 use crate::{pkgbuild::Source, sources::VCSKind, Makepkg};
 
-pub trait CallBacks: std::fmt::Debug {
+pub trait Callbacks: std::fmt::Debug {
     fn event(&mut self, _event: Event) {}
     fn progress(&mut self, _source: Source, _dltotal: f64, _dlnow: f64) {}
     fn log(&mut self, _level: LogLevel, _msg: LogMessage) {}
@@ -15,7 +15,7 @@ pub trait CallBacks: std::fmt::Debug {
 #[derive(Debug)]
 pub struct CallBackPrinter;
 
-impl CallBacks for CallBackPrinter {
+impl Callbacks for CallBackPrinter {
     fn event(&mut self, event: Event) {
         match event {
             Event::FoundSource(_)
@@ -232,7 +232,7 @@ impl Display for LogMessage {
 }
 
 impl Makepkg {
-    pub fn callback<CB: CallBacks + 'static>(mut self, callbacks: CB) -> Self {
+    pub fn callback<CB: Callbacks + 'static>(mut self, callbacks: CB) -> Self {
         self.callbacks = Some(Box::new(RefCell::new(callbacks)));
         self
     }

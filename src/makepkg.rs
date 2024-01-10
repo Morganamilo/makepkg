@@ -1,7 +1,7 @@
 use std::{cell::RefCell, process::Child};
 
 use crate::{
-    callback::CallBacks,
+    callback::Callbacks,
     config::{Config, PkgbuildDirs},
     error::Result,
     pkgbuild::Pkgbuild,
@@ -32,7 +32,7 @@ impl FakeRoot {
 #[derive(Debug, Default)]
 pub struct Makepkg {
     pub config: Config,
-    pub(crate) callbacks: Option<Box<RefCell<dyn CallBacks>>>,
+    pub(crate) callbacks: Option<Box<RefCell<dyn Callbacks>>>,
     pub(crate) fakeroot: RefCell<Option<FakeRoot>>,
 }
 

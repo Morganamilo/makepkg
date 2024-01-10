@@ -739,17 +739,14 @@ impl Config {
 #[cfg(test)]
 mod test {
     use std::io::{stdout, Write};
-
     use ansi_term::{Color, Style};
-
-    use crate::{CallBacks, Event, LogLevel, LogMessage, Makepkg, Options};
-
+    use crate::{Callbacks, Event, LogLevel, LogMessage, Makepkg, Options};
     use super::*;
 
     #[derive(Debug)]
     pub struct PrettyPrinter;
 
-    impl CallBacks for PrettyPrinter {
+    impl Callbacks for PrettyPrinter {
         fn event(&mut self, event: Event) {
             match event {
                 Event::FoundSource(_)
