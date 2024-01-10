@@ -28,11 +28,11 @@ use crate::{
     Makepkg,
 };
 
-fn pipe(function: &str) -> Result<(UnixStream, UnixStream)> {
+fn sock_pair(function: &str) -> Result<(UnixStream, UnixStream)> {
     let (r, w) =
-        UnixStream::pair().context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
+        UnixStream::pair().context(Context::RunFunction(function.to_string()), IOContext::Socket)?;
     r.set_nonblocking(true)
-        .context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
+        .context(Context::RunFunction(function.to_string()), IOContext::Socket)?;
 
     Ok((r, w))
 }
@@ -101,9 +101,6 @@ impl Makepkg {
         capture_output: bool,
     ) -> Result<String> {
         self.event(Event::RunningFunction(function.to_string()));
-        //let capture_output = true;
-        let mut options = options.clone();
-        //options.log = true;
 
         let workingdir = match function {
             "verify" => dirs.startdir.as_path(),
@@ -161,10 +158,10 @@ impl Makepkg {
         };
 
         if capture_output || options.log {
-            let (read1, write1) = pipe(function)?;
+            let (read1, write1) = sock_pair(function)?;
 
             let write2 = if capture_output {
-                let (read2, write2) = pipe(function)?;
+                let (read2, write2) = sock_pair(function)?;
                 readers.push(read2);
                 outputfd = read1.as_raw_fd();
                 write2
@@ -207,7 +204,7 @@ impl Makepkg {
                 }
             }
 
-            res.context(Context::RunFunction(function.to_string()), IOContext::Pipe)?;
+            res.context(Context::RunFunction(function.to_string()), IOContext::Socket)?;
 
             let mut events = pollfds
                 .into_iter()
