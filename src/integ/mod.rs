@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{ErrorKind, Read};
+use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
 
 use blake2::Blake2b512;
@@ -50,7 +50,7 @@ impl Makepkg {
         if pkgbuild.has_function(Function::Verify) {
             let err = self.run_function(options, pkgbuild, Function::Verify);
             if let Err(Error::Command(CommandError {
-                kind: CommandErrorKind::ExitCode(_),
+                kind: CommandErrorKind::ExitCode(Some(_)),
                 ..
             })) = err
             {
@@ -202,7 +202,7 @@ impl Makepkg {
 
             for (n, source) in source.values.iter().enumerate() {
                 ok &= self.check_checksums_one_file(
-                    dirs, source, n, md5, sha1, sha224, sha256, sha512, b2,
+                    dirs, pkgbuild, source, n, md5, sha1, sha224, sha256, sha512, b2,
                 )?;
             }
         }
@@ -217,6 +217,7 @@ impl Makepkg {
     fn check_checksums_one_file(
         &self,
         dirs: &PkgbuildDirs,
+        p: &Pkgbuild,
         source: &Source,
         n: usize,
         md5: &[String],
@@ -245,12 +246,12 @@ impl Makepkg {
             return Ok(true);
         }
 
-        self.verify_file_checksum::<Md5>(dirs, source, md5.get(n), "MD5", &mut failed)?;
-        self.verify_file_checksum::<Sha1>(dirs, source, sha1.get(n), "SHA1", &mut failed)?;
-        self.verify_file_checksum::<Sha224>(dirs, source, sha224.get(n), "SHA224", &mut failed)?;
-        self.verify_file_checksum::<Sha256>(dirs, source, sha256.get(n), "SHA256", &mut failed)?;
-        self.verify_file_checksum::<Sha512>(dirs, source, sha512.get(n), "SHA512", &mut failed)?;
-        self.verify_file_checksum::<Blake2b512>(dirs, source, b2.get(n), "B2", &mut failed)?;
+        self.verify_file_checksum::<Md5>(dirs, p, source, md5.get(n), "MD5", &mut failed)?;
+        self.verify_file_checksum::<Sha1>(dirs, p, source, sha1.get(n), "SHA1", &mut failed)?;
+        self.verify_file_checksum::<Sha224>(dirs, p, source, sha224.get(n), "SHA224", &mut failed)?;
+        self.verify_file_checksum::<Sha256>(dirs, p, source, sha256.get(n), "SHA256", &mut failed)?;
+        self.verify_file_checksum::<Sha512>(dirs, p, source, sha512.get(n), "SHA512", &mut failed)?;
+        self.verify_file_checksum::<Blake2b512>(dirs, p, source, b2.get(n), "B2", &mut failed)?;
 
         if !failed.is_empty() {
             self.event(Event::ChecksumFailed(
@@ -300,22 +301,12 @@ impl Makepkg {
 
         for sum in enabled {
             match sum {
-                "md5" => self.gen_integ::<Md5>(&dirs, &mut arrays, &p.source, &p.md5sums, sum)?,
-                "sha1" => {
-                    self.gen_integ::<Sha1>(&dirs, &mut arrays, &p.source, &p.sha1sums, sum)?
-                }
-                "sha224" => {
-                    self.gen_integ::<Sha224>(&dirs, &mut arrays, &p.source, &p.sha224sums, sum)?
-                }
-                "sha256" => {
-                    self.gen_integ::<Sha256>(&dirs, &mut arrays, &p.source, &p.sha256sums, sum)?
-                }
-                "sha512" => {
-                    self.gen_integ::<Sha512>(&dirs, &mut arrays, &p.source, &p.sha512sums, sum)?
-                }
-                "b2" => {
-                    self.gen_integ::<Blake2b512>(&dirs, &mut arrays, &p.source, &p.b2sums, sum)?
-                }
+                "md5" => self.gen_integ::<Md5>(&dirs, p, &mut arrays, &p.md5sums, sum)?,
+                "sha1" => self.gen_integ::<Sha1>(&dirs, p, &mut arrays, &p.sha1sums, sum)?,
+                "sha224" => self.gen_integ::<Sha224>(&dirs, p, &mut arrays, &p.sha224sums, sum)?,
+                "sha256" => self.gen_integ::<Sha256>(&dirs, p, &mut arrays, &p.sha256sums, sum)?,
+                "sha512" => self.gen_integ::<Sha512>(&dirs, p, &mut arrays, &p.sha512sums, sum)?,
+                "b2" => self.gen_integ::<Blake2b512>(&dirs, p, &mut arrays, &p.b2sums, sum)?,
                 _ => (),
             }
         }
@@ -335,19 +326,19 @@ impl Makepkg {
         Ok(output)
     }
 
-    fn gen_integ<D: Digest>(
+    fn gen_integ<D: Digest + Write>(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         out: &mut Vec<(String, Vec<String>)>,
-        sources: &ArchVecs<Source>,
         sums: &ArchVecs<String>,
         sum: &str,
     ) -> Result<()> {
-        for arch in &sources.values {
+        for arch in &pkgbuild.source.values {
             let default = ArchVec::default();
 
             let sums = sums.get(arch.arch.as_deref()).unwrap_or(&default);
-            let array = self.gen_integ_arr::<D>(dirs, &arch.values, &sums.values)?;
+            let array = self.gen_integ_arr::<D>(dirs, pkgbuild, &arch.values, &sums.values)?;
             let name = match &arch.arch {
                 Some(a) => format!("{}sums_{}", sum, a),
                 None => format!("{}sums", sum),
@@ -359,9 +350,10 @@ impl Makepkg {
         Ok(())
     }
 
-    fn gen_integ_arr<D: Digest>(
+    fn gen_integ_arr<D: Digest + Write>(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         sources: &[Source],
         sums: &[String],
     ) -> Result<Vec<String>> {
@@ -377,7 +369,7 @@ impl Makepkg {
             let path = dirs.download_path(source);
 
             let hash = match source.vcs_kind() {
-                Some(vcs) => self.checksum_vcs::<D>(dirs, vcs, source)?,
+                Some(vcs) => self.checksum_vcs::<D>(dirs, pkgbuild, vcs, source)?,
                 _ => hash_file::<D>(&path)?,
             };
             out.push(hash);
@@ -386,9 +378,10 @@ impl Makepkg {
         Ok(out)
     }
 
-    fn verify_file_checksum<D: Digest>(
+    fn verify_file_checksum<D: Digest + Write>(
         &self,
         dirs: &PkgbuildDirs,
+        p: &Pkgbuild,
         source: &Source,
         sum: Option<&String>,
         name: &'static str,
@@ -407,7 +400,7 @@ impl Makepkg {
         }
 
         let output = match source.vcs_kind() {
-            Some(vcs) => self.checksum_vcs::<D>(dirs, vcs, source)?,
+            Some(vcs) => self.checksum_vcs::<D>(dirs, p, vcs, source)?,
             _ => hash_file::<D>(&path)?,
         };
 
@@ -424,12 +417,12 @@ fn get_sum_array<'a>(sums: &'a ArchVecs<String>, arch: &Option<String>) -> &'a [
         .unwrap_or_default()
 }
 
-pub(crate) fn hash_file<D: Digest>(path: &Path) -> Result<String> {
+pub(crate) fn hash_file<D: Digest + Write>(path: &Path) -> Result<String> {
     let mut file = open(File::options().read(true), path, Context::IntegrityCheck)?;
     hash::<D, _>(path, &mut file)
 }
 
-pub(crate) fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String> {
+pub(crate) fn hash<D: Digest + Write, R: Read>(path: &Path, r: &mut R) -> Result<String> {
     let mut buffer = vec![0; 1024];
     let mut digest = D::new();
 
@@ -448,7 +441,9 @@ pub(crate) fn hash<D: Digest, R: Read>(path: &Path, r: &mut R) -> Result<String>
         digest.update(&buffer[0..n]);
     }
 
-    let output = digest.finalize();
-    let output = hex::encode(&output);
-    Ok(output)
+    Ok(finalize(digest))
+}
+
+pub(crate) fn finalize<D: Digest>(digest: D) -> String {
+    hex::encode(&digest.finalize())
 }

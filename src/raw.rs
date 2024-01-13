@@ -74,7 +74,6 @@ use std::{
     io::{self, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    thread,
 };
 
 use crate::{
@@ -268,16 +267,14 @@ fn bash_output<P: AsRef<Path>>(dir: Option<&Path>, files: &[P], cmd: &str) -> Re
         .cmd_context(&command, Context::SourcePkgbuild)?;
     let mut stdin = child.stdin.take().unwrap();
 
-    let thread = thread::spawn(move || stdin.write_all(PKGBUILD_SCRIPT.as_bytes()));
+    stdin
+        .write_all(PKGBUILD_SCRIPT.as_bytes())
+        .cmd_context(&command, Context::SourcePkgbuild)?;
+    drop(stdin);
 
     let output = child
         .wait_with_output()
         .read(&command, Context::SourcePkgbuild)?;
-
-    thread
-        .join()
-        .unwrap()
-        .cmd_context(&command, Context::SourcePkgbuild)?;
 
     Ok(output)
 }

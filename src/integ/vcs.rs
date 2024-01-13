@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use digest::Digest;
 
 use crate::{
@@ -27,16 +29,17 @@ impl Makepkg {
         }
     }
 
-    pub(crate) fn checksum_vcs<D: Digest>(
+    pub(crate) fn checksum_vcs<D: Digest + Write>(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         vcs: VCSKind,
         source: &Source,
     ) -> Result<String> {
         match vcs {
-            VCSKind::Git => self.checksum_git::<D>(dirs, source),
-            VCSKind::Mercurial => self.checksum_hg::<D>(dirs, source),
-            VCSKind::Bzr => self.checksum_bzr::<D>(dirs, source),
+            VCSKind::Git => self.checksum_git::<D>(dirs, pkgbuild, source),
+            VCSKind::Mercurial => self.checksum_hg::<D>(dirs, pkgbuild, source),
+            VCSKind::Bzr => self.checksum_bzr::<D>(dirs, pkgbuild, source),
             _ => Err(IntegError::DoesNotSupportChecksums(source.clone()).into()),
         }
     }

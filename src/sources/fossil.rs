@@ -4,15 +4,17 @@ use std::process::Command;
 use crate::{
     config::PkgbuildDirs,
     error::{CommandErrorExt, CommandOutputExt, Context, DownloadError, Result},
-    pkgbuild::{Fragment, Source},
+    pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
-    Event, Makepkg, Options,
+    CommandKind, Event, Makepkg, Options,
 };
 
 impl Makepkg {
     pub(crate) fn download_fossil(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         options: &Options,
         source: &Source,
     ) -> Result<()> {
@@ -25,7 +27,7 @@ impl Makepkg {
                 .arg("clone")
                 .arg(&source.url)
                 .arg(&repopath)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
             self.event(Event::UpdatingVCS(VCSKind::Fossil, source.clone()));
@@ -35,7 +37,7 @@ impl Makepkg {
                 .arg("remote")
                 .arg("-R")
                 .arg(&repopath)
-                .output()
+                .process_read(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_read(source, &command, Context::None)?;
 
             if url != source.url {
@@ -47,14 +49,19 @@ impl Makepkg {
                 .arg("pull")
                 .arg("-R")
                 .arg(&repopath)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn extract_fossil(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
+    pub(crate) fn extract_fossil(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        source: &Source,
+    ) -> Result<()> {
         self.event(Event::ExtractingVCS(VCSKind::Fossil, source.clone()));
 
         let srcpath = dirs.srcdir.join(source.file_name());
@@ -68,7 +75,7 @@ impl Makepkg {
                 let info = command
                     .arg("info")
                     .current_dir(&srcpath)
-                    .output()
+                    .process_read(self, CommandKind::ExtractSources(pkgbuild, source))
                     .download_read(source, &command, Context::None)?;
 
                 let repository = info
@@ -99,7 +106,7 @@ impl Makepkg {
                 .arg("--workdir")
                 .arg(&dirs.srcdir)
                 .current_dir(&dirs.srcdir)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
@@ -123,7 +130,7 @@ impl Makepkg {
             .arg("update")
             .arg(&fref)
             .current_dir(&srcpath)
-            .status()
+            .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
             .download_context(source, &command, Context::None)?;
 
         Ok(())

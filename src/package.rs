@@ -9,7 +9,6 @@ use std::{
     },
     path::Path,
     process::{Command, Stdio},
-    thread,
 };
 
 use nix::{
@@ -19,7 +18,7 @@ use nix::{
 use sha2::Sha256;
 
 use crate::{
-    callback::Event,
+    callback::{CommandKind, Event, LogLevel, LogMessage},
     config::PkgbuildDirs,
     error::{CommandErrorExt, CommandOutputExt, Context, IOContext, IOErrorExt, Result},
     fs::{copy, copy_dir, mkdir, open, rm_all, set_time, write},
@@ -28,7 +27,8 @@ use crate::{
     options::Options,
     pacman::buildinfo_installed,
     pkgbuild::{Package, Pkgbuild},
-    FakeRoot, LogLevel, LogMessage, Makepkg,
+    run::CommandOutput,
+    FakeRoot, Makepkg,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -89,7 +89,7 @@ impl Makepkg {
             set_time(file.path(), self.config.source_date_epoch, false)?;
         }
 
-        self.generate_mtree(dirs, pkg)?;
+        self.generate_mtree(dirs, pkgbuild, pkg)?;
 
         set_time(pkgdir.join(".MTREE"), self.config.source_date_epoch, false)?;
 
@@ -100,7 +100,12 @@ impl Makepkg {
         Ok(())
     }
 
-    fn generate_mtree(&self, dirs: &PkgbuildDirs, pkg: &Package) -> Result<()> {
+    fn generate_mtree(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        pkg: &Package,
+    ) -> Result<()> {
         self.event(Event::GeneratingPackageFile(".MTREE".to_string()));
         let pkgdir = dirs.pkgdir(pkg);
         let files = self.package_files(&pkgdir)?;
@@ -127,32 +132,17 @@ impl Makepkg {
             .stdout(Stdio::piped())
             .stdin(Stdio::piped());
 
-        let mut tar = tarcmd
-            .spawn()
-            .cmd_context(&tarcmd, Context::GeneratePackageFile(".MTREE".into()))?;
-        let mut tar_in = tar.stdin.take().unwrap();
-
-        let thread = thread::spawn(move || tar_in.write_all(&files));
-
         let mut gzip = Command::new("gzip");
-        gzip.arg("-cfn")
-            .stdout(mtree)
-            .stdin(tar.stdout.take().unwrap());
+        gzip.arg("-cfn").stdout(mtree);
 
-        let mut gzip = gzip
-            .spawn()
+        tarcmd
+            .process_pipe(
+                self,
+                CommandKind::BuildingPackage(pkgbuild),
+                Some(files.as_slice()),
+                &mut gzip,
+            )
             .cmd_context(&tarcmd, Context::GeneratePackageFile(".MTREE".into()))?;
-
-        tar.wait()
-            .cmd_context(&tarcmd, Context::GeneratePackageFile(".MTREE".into()))?;
-
-        gzip.wait()
-            .cmd_context(&tarcmd, Context::GeneratePackageFile(".MTREE".into()))?;
-
-        thread.join().unwrap().context(
-            Context::CreatePackage,
-            IOContext::WriteProcess("bsdtar".to_string()),
-        )?;
 
         Ok(())
     }
@@ -232,30 +222,17 @@ impl Makepkg {
                 .arg("-");
         }
 
-        let mut tar = tarcmd
-            .spawn()
-            .cmd_context(&tarcmd, Context::CreatePackage)?;
-
-        let mut tar_in = tar.stdin.take().unwrap();
-
-        let thread = thread::spawn(move || tar_in.write_all(&files));
-
         let mut zipcmd = Command::new(compress_prog);
-        zipcmd
-            .args(&compress[1..])
-            .stdout(pkgfile)
-            .stdin(tar.stdout.take().unwrap());
+        zipcmd.args(&compress[1..]).stdout(pkgfile);
 
-        let mut zip = zipcmd
-            .spawn()
-            .cmd_context(&zipcmd, Context::CreatePackage)?;
-
-        tar.wait().cmd_context(&tarcmd, Context::CreatePackage)?;
-        zip.wait().cmd_context(&zipcmd, Context::CreatePackage)?;
-        thread.join().unwrap().context(
-            Context::CreatePackage,
-            IOContext::WriteProcess("bsdtar".into()),
-        )?;
+        tarcmd
+            .process_pipe(
+                self,
+                CommandKind::BuildingPackage(pkgbuild),
+                Some(files.as_slice()),
+                &mut zipcmd,
+            )
+            .cmd_context(&tarcmd, Context::CreatePackage)?;
 
         Ok(())
     }
@@ -316,7 +293,7 @@ impl Makepkg {
             c.options.values.iter().map(|s| s.to_string()),
         )?;
 
-        let installed = buildinfo_installed();
+        let installed = buildinfo_installed(self, pkgbuild);
 
         //TODO warn no pacman installed
         if let Ok(installed) = installed {
@@ -347,10 +324,13 @@ impl Makepkg {
         )?;
 
         let mut fakerootcmd = Command::new("fakeroot");
-        let fakeroot = fakerootcmd.arg("-v").output().read(
-            &fakerootcmd,
-            Context::GeneratePackageFile(".PKGINFO".into()),
-        )?;
+        let fakeroot = fakerootcmd
+            .arg("-v")
+            .process_read(self, CommandKind::BuildingPackage(pkgbuild))
+            .read(
+                &fakerootcmd,
+                Context::GeneratePackageFile(".PKGINFO".into()),
+            )?;
 
         writeln!(
             file,

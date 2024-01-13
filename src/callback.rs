@@ -1,15 +1,55 @@
 use std::{
-    cell::RefCell,
     fmt::Display,
+    fs::File,
     io::{stdout, Write},
 };
 
-use crate::{pkgbuild::Source, sources::VCSKind, Makepkg};
+use crate::{
+    pkgbuild::{Pkgbuild, Source},
+    sources::VCSKind,
+    Makepkg,
+};
 
-pub trait Callbacks: std::fmt::Debug {
+pub trait Callbacks: std::fmt::Debug + 'static {
     fn event(&mut self, _event: Event) {}
     fn progress(&mut self, _source: Source, _dltotal: f64, _dlnow: f64) {}
     fn log(&mut self, _level: LogLevel, _msg: LogMessage) {}
+
+    fn command_new(&mut self, _id: usize, _kind: CommandKind) -> CommandOutput {
+        Default::default()
+    }
+    fn command_exit(&mut self, _id: usize) {}
+    fn command_output(&mut self, _id: usize, _output: &[u8]) {}
+}
+
+#[derive(Debug, Default)]
+pub enum CommandOutput {
+    #[default]
+    Inherit,
+    Null,
+    Callback,
+    File(File),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CommandKind<'a> {
+    PkgbuildFunction(&'a Pkgbuild),
+    BuildingPackage(&'a Pkgbuild),
+    DownloadSources(&'a Pkgbuild, &'a Source),
+    ExtractSources(&'a Pkgbuild, &'a Source),
+    Integ(&'a Pkgbuild, &'a Source),
+}
+
+impl<'a> CommandKind<'a> {
+    pub fn pkgbuild(&self) -> &'a Pkgbuild {
+        match self {
+            CommandKind::PkgbuildFunction(p) => p,
+            CommandKind::BuildingPackage(p) => p,
+            CommandKind::DownloadSources(p, _) => p,
+            CommandKind::ExtractSources(p, _) => p,
+            CommandKind::Integ(p, _) => p,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -101,6 +141,7 @@ pub enum Event {
     BuildingSourcePackage(String, String),
     BuiltPackage(String, String),
     BuiltSourcePackage(String, String),
+    CreatingArchive(String),
     RetrievingSources,
     FoundSource(String),
     Downloading(String),
@@ -150,6 +191,7 @@ impl Display for Event {
             Event::BuiltSourcePackage(name, ver) => {
                 write!(f, "Built source package {}-{}", name, ver)
             }
+            Event::CreatingArchive(file) => write!(f, "Creating Archive {}...", file),
             Event::AddingPackageFiles => write!(f, "Adding package files..."),
             Event::RetrievingSources => write!(f, "Retrieving sources..."),
             Event::VerifyingSignatures => write!(f, "Verifying source signatures..."),
@@ -191,7 +233,7 @@ impl Display for Event {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LogLevel {
     Debug,
     Warning,
@@ -208,7 +250,7 @@ impl Display for LogLevel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LogMessage {
     SkippingAllIntegrityChecks,
     SkippingPGPIntegrityChecks,
@@ -232,26 +274,21 @@ impl Display for LogMessage {
 }
 
 impl Makepkg {
-    pub fn callback<CB: Callbacks + 'static>(mut self, callbacks: CB) -> Self {
-        self.callbacks = Some(Box::new(RefCell::new(callbacks)));
-        self
-    }
-
     pub fn event(&self, event: Event) {
-        if let Some(cb) = &self.callbacks {
-            cb.borrow_mut().event(event)
+        if let Some(cb) = &mut *self.callbacks.borrow_mut() {
+            cb.event(event)
         }
     }
 
     pub fn log(&self, level: LogLevel, msg: LogMessage) {
-        if let Some(cb) = &self.callbacks {
-            cb.borrow_mut().log(level, msg)
+        if let Some(cb) = &mut *self.callbacks.borrow_mut() {
+            cb.log(level, msg)
         }
     }
 
     pub fn progress(&self, source: Source, dltotal: f64, dlnow: f64) {
-        if let Some(cb) = &self.callbacks {
-            cb.borrow_mut().progress(source, dltotal, dlnow)
+        if let Some(cb) = &mut *self.callbacks.borrow_mut() {
+            cb.progress(source, dltotal, dlnow)
         }
     }
 }

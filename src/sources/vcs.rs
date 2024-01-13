@@ -59,15 +59,16 @@ impl Makepkg {
     pub(crate) fn extract_vcs(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         vcs: VCSKind,
         source: &Source,
     ) -> Result<()> {
         match vcs {
-            VCSKind::Git => self.extract_git(dirs, source),
+            VCSKind::Git => self.extract_git(dirs, pkgbuild, source),
             VCSKind::Svn => self.extract_svn(dirs, source),
-            VCSKind::Mercurial => self.extract_hg(dirs, source),
-            VCSKind::Fossil => self.extract_fossil(dirs, source),
-            VCSKind::Bzr => self.extract_bzr(dirs, source),
+            VCSKind::Mercurial => self.extract_hg(dirs, pkgbuild, source),
+            VCSKind::Fossil => self.extract_fossil(dirs, pkgbuild, source),
+            VCSKind::Bzr => self.extract_bzr(dirs, pkgbuild, source),
         }
     }
 
@@ -75,17 +76,17 @@ impl Makepkg {
         &self,
         dirs: &PkgbuildDirs,
         options: &Options,
-        _pkgbuild: &Pkgbuild,
+        pkgbuild: &Pkgbuild,
         sources: &BTreeMap<VCSKind, Vec<&Source>>,
     ) -> Result<()> {
         for (vcs, sources) in sources {
             for &source in sources {
                 match vcs {
-                    VCSKind::Git => self.download_git(dirs, options, source)?,
-                    VCSKind::Svn => self.download_svn(dirs, options, source)?,
-                    VCSKind::Mercurial => self.download_hg(dirs, options, source)?,
-                    VCSKind::Fossil => self.download_fossil(dirs, options, source)?,
-                    VCSKind::Bzr => self.download_bzr(dirs, options, source)?,
+                    VCSKind::Git => self.download_git(dirs, pkgbuild, options, source)?,
+                    VCSKind::Svn => self.download_svn(dirs, pkgbuild, options, source)?,
+                    VCSKind::Mercurial => self.download_hg(dirs, pkgbuild, options, source)?,
+                    VCSKind::Fossil => self.download_fossil(dirs, pkgbuild, options, source)?,
+                    VCSKind::Bzr => self.download_bzr(dirs, pkgbuild, options, source)?,
                 }
             }
         }

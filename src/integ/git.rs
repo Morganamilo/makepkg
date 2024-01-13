@@ -1,24 +1,34 @@
-use std::process::{Command, Stdio};
+use std::{
+    io::Write,
+    process::{Command, Stdio},
+};
 
 use digest::Digest;
 
 use crate::{
     config::PkgbuildDirs,
     error::{CommandErrorExt, CommandOutputExt, Context, DownloadError, IntegError, Result},
-    integ,
+    integ::finalize,
     pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
-    Event, Makepkg, SigFailed, SigFailedKind,
+    CommandKind, Event, Makepkg, SigFailed, SigFailedKind,
 };
 
 impl Makepkg {
-    pub fn checksum_git<D: Digest>(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<String> {
+    pub fn checksum_git<D: Digest + Write>(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        source: &Source,
+    ) -> Result<String> {
         let srcpath = dirs.download_path(source);
 
         match &source.fragment {
             Some(Fragment::Tag(r) | Fragment::Commit(r)) => {
+                let mut digest = D::new();
                 let mut command = Command::new("git");
-                let mut child = command
+                command
                     .arg("-c")
                     .arg("core.abbrev=no")
                     .arg("archive")
@@ -27,16 +37,10 @@ impl Makepkg {
                     .arg(r)
                     .stdout(Stdio::piped())
                     .current_dir(&srcpath)
-                    .spawn()
+                    .process_write_output(self, CommandKind::Integ(pkgbuild, source), &mut digest)
                     .cmd_context(&command, Context::IntegrityCheck)?;
 
-                let mut stdout = child.stdout.take().unwrap();
-                let hash = integ::hash::<D, _>(source.file_name().as_ref(), &mut stdout)?;
-
-                child
-                    .wait()
-                    .cmd_context(&command, Context::IntegrityCheck)?;
-
+                let hash = finalize(digest);
                 Ok(hash)
             }
             Some(f) => {
@@ -69,9 +73,10 @@ impl Makepkg {
             .arg("-p")
             .arg(fragval)
             .current_dir(path)
-            .output()
-            .read(&command, Context::IntegrityCheck)
+            .process_output()
             .map_err(|_| IntegError::SignatureNotFound(source.clone()))?;
+
+        let object = object.stdout.read(&command, Context::IntegrityCheck)?;
 
         if !object.contains("-----BEGIN PGP SIGNATURE-----") {
             self.event(Event::SignatureCheckFailed(SigFailed::new(

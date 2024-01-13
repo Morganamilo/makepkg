@@ -1,28 +1,33 @@
-use std::process::{Command, Stdio};
+use std::{io::Write, process::Command};
 
 use digest::Digest;
 
 use crate::{
     config::PkgbuildDirs,
     error::{CommandErrorExt, Context, DownloadError, Result},
-    integ,
-    pkgbuild::{Fragment, Source},
+    pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
-    Makepkg,
+    CommandKind, Makepkg,
 };
 
+use super::finalize;
+
 impl Makepkg {
-    pub(crate) fn checksum_hg<D: Digest>(
+    pub(crate) fn checksum_hg<D: Digest + Write>(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         source: &Source,
     ) -> Result<String> {
         let srcpath = dirs.download_path(source);
 
         match &source.fragment {
             Some(Fragment::Tag(r) | Fragment::Revision(r)) => {
+                let mut digest = D::new();
+
                 let mut command = Command::new("hg");
-                let mut child = command
+                command
                     .arg("--repository")
                     .arg(&srcpath)
                     .arg("archive")
@@ -31,17 +36,10 @@ impl Makepkg {
                     .arg("--rev")
                     .arg(r)
                     .arg("-")
-                    .stdout(Stdio::piped())
-                    .spawn()
+                    .process_write_output(self, CommandKind::Integ(pkgbuild, source), &mut digest)
                     .download_context(source, &command, Context::None)?;
 
-                let mut stdout = child.stdout.take().unwrap();
-                let hash = integ::hash::<D, _>(source.file_name().as_ref(), &mut stdout)?;
-
-                child
-                    .wait()
-                    .download_context(source, &command, Context::None)?;
-
+                let hash = finalize(digest);
                 Ok(hash)
             }
             Some(f) => Err(DownloadError::UnsupportedFragment(

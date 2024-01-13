@@ -3,15 +3,17 @@ use std::process::Command;
 use crate::{
     config::PkgbuildDirs,
     error::{CommandErrorExt, Context, DownloadError, Result},
-    pkgbuild::{Fragment, Source},
+    pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
-    Event, Makepkg, Options,
+    CommandKind, Event, Makepkg, Options,
 };
 
 impl Makepkg {
     pub(crate) fn download_bzr(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         options: &Options,
         source: &Source,
     ) -> Result<()> {
@@ -32,7 +34,7 @@ impl Makepkg {
                 .arg(&repopath)
                 .arg("--no-tree")
                 .arg("--use-existing-dir")
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
             self.event(Event::UpdatingVCS(VCSKind::Bzr, source.clone()));
@@ -42,14 +44,19 @@ impl Makepkg {
                 .arg("pull")
                 .arg(&url)
                 .current_dir(&repopath)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
         Ok(())
     }
 
-    pub fn extract_bzr(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
+    pub fn extract_bzr(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        source: &Source,
+    ) -> Result<()> {
         self.event(Event::ExtractingVCS(VCSKind::Bzr, source.clone()));
 
         let srcpath = dirs.srcdir.join(source.file_name());
@@ -79,7 +86,7 @@ impl Makepkg {
                 .arg("-r")
                 .arg(&bzrref)
                 .current_dir(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
             command = Command::new("bzr");
             command
@@ -88,7 +95,7 @@ impl Makepkg {
                 .arg("--detritus")
                 .arg("--force")
                 .current_dir(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else {
             let mut command = Command::new("bzr");
@@ -98,7 +105,7 @@ impl Makepkg {
                 .arg("-r")
                 .arg(&bzrref)
                 .current_dir(&dirs.srcdir)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 

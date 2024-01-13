@@ -1,6 +1,12 @@
 use std::process::Command;
 
-use crate::error::{CommandOutputExt, Context, Result};
+use crate::{
+    callback::CommandKind,
+    error::{CommandOutputExt, Context, Result},
+    pkgbuild::Pkgbuild,
+    run::CommandOutput,
+    Makepkg,
+};
 
 /*
 pub fn deptest<'a, I: Iterator<Item = &'a str>>(pkgs: I) -> Result<Vec<String>> {
@@ -13,10 +19,10 @@ pub fn installed() -> Result<Vec<String>> {
 }
 */
 
-pub fn buildinfo_installed() -> Result<Vec<String>> {
+pub fn buildinfo_installed(makepkg: &Makepkg, pkgbuild: &Pkgbuild) -> Result<Vec<String>> {
     let mut installed = Vec::new();
     let mut current = String::new();
-    let pkgs = read_pacman(&["-Qi"], None.into_iter())?;
+    let pkgs = read_pacman(makepkg, pkgbuild, &["-Qi"], None.into_iter())?;
 
     for pkg in pkgs {
         if pkg.starts_with("Name") {
@@ -37,12 +43,19 @@ pub fn buildinfo_installed() -> Result<Vec<String>> {
         }
     }
 
-    installed.push(current);
+    if !current.is_empty() {
+        installed.push(current);
+    }
 
     Ok(installed)
 }
 
-fn read_pacman<'a, S, I>(args: &[S], pkgs: I) -> Result<Vec<String>>
+fn read_pacman<'a, S, I>(
+    makepkg: &Makepkg,
+    pkgbuild: &Pkgbuild,
+    args: &[S],
+    pkgs: I,
+) -> Result<Vec<String>>
 where
     S: AsRef<str>,
     I: Iterator<Item = &'a str>,
@@ -57,17 +70,20 @@ where
         command.arg(pkg);
     }
 
-    let output = command.output().read(&command, Context::QueryPacman)?;
+    let output = command
+        .process_read(makepkg, CommandKind::BuildingPackage(pkgbuild))
+        .read(&command, Context::QueryPacman)?;
+
     Ok(output.lines().map(|l| l.to_string()).collect())
 }
 
 /*
 pub fn run_pacman<'a, I: Iterator<Item = &'a str>>(op: &str, args: &[&str], pkgs: I) -> Result<()> {
-    let mut command = Command::new("sudo");
+    let mut command = self.command("sudo");
     command.arg("pacman").arg(op).args(args).arg("--");
     command.args(pkgs);
 
-    command.status().cmd_context(&command, Context::RunPacman)?;
+    command.st//atus().cmd_context(&command, Context::RunPacman)?;
     Ok(())
 }
 */

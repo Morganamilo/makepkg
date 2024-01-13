@@ -39,7 +39,7 @@ impl Makepkg {
             self.get_downloads(pkgbuild, &dirs, all)?;
 
         self.download_curl_sources(&dirs, curl_downloads)?;
-        self.download_file(&dirs, &downloads)?;
+        self.download_file(&dirs, pkgbuild, &downloads)?;
         self.download_vcs(&dirs, options, pkgbuild, &vcs_downloads)?;
 
         Ok(())
@@ -57,8 +57,8 @@ impl Makepkg {
 
             for source in &source.values {
                 match source.vcs_kind() {
-                    Some(vcs) => self.extract_vcs(&dirs, vcs, source)?,
-                    _ => self.extract_file(&dirs, source, &pkgbuild.noextract)?,
+                    Some(vcs) => self.extract_vcs(&dirs, pkgbuild, vcs, source)?,
+                    _ => self.extract_file(&dirs, pkgbuild, source)?,
                 }
             }
         }

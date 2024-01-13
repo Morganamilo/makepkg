@@ -141,9 +141,9 @@ pub fn copy_dir<P1: AsRef<Path>, P2: AsRef<Path>>(
             mkdir(&dest, context.clone())?;
             let metadata = file
                 .metadata()
-                .context(context.clone(), IOContext::Stat(file.path().into()))?;
+                .context(context.clone(), IOContext::Stat(file.path().into()).into())?;
             std::fs::set_permissions(&dest, PermissionsExt::from_mode(metadata.mode()))
-                .context(Context::CreatePackage, IOContext::Chmod(dest))?;
+                .context(Context::CreatePackage, IOContext::Chmod(dest.into()))?;
         } else if ty.is_symlink() {
             let pointer = read_link(file.path(), context.clone())?;
             make_link(pointer, &dest, context.clone())?;

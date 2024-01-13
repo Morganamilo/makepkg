@@ -5,14 +5,16 @@ use crate::{
     config::{DownloadAgent, PkgbuildDirs},
     error::{CommandErrorExt, Context, Result},
     fs::{make_link, rename, rm_file},
-    pkgbuild::Source,
-    Makepkg,
+    pkgbuild::{Pkgbuild, Source},
+    run::CommandOutput,
+    CommandKind, Makepkg,
 };
 
 impl Makepkg {
     pub(crate) fn download_file(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         downloads: &BTreeMap<&DownloadAgent, Vec<&Source>>,
     ) -> Result<()> {
         for (agent, sources) in downloads {
@@ -37,7 +39,7 @@ impl Makepkg {
                 command
                     .args(&args)
                     .current_dir(&dirs.srcdest)
-                    .status()
+                    .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                     .download_context(source, &command, Context::None)?;
 
                 rename(&part, &final_path, Context::RetrieveSources)?;
@@ -49,8 +51,8 @@ impl Makepkg {
     pub(crate) fn extract_file(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         source: &Source,
-        no_extract: &[String],
     ) -> Result<()> {
         let srcdestfile = dirs.download_path(source);
         let srcfile = dirs.srcdir.join(source.file_name());
@@ -60,7 +62,7 @@ impl Makepkg {
 
         make_link(srcdestfile, &srcfile, Context::ExtractSources)?;
 
-        if no_extract.iter().any(|s| s == source.file_name()) {
+        if pkgbuild.noextract.iter().any(|s| s == source.file_name()) {
             self.event(Event::NoExtact(source.file_name().to_string()));
             return Ok(());
         }
@@ -69,9 +71,9 @@ impl Makepkg {
         let supported = Command::new("bsdtar")
             .arg("-tf")
             .arg(&srcfile)
-            .output()
+            .process_output()
             .ok()
-            .map(|o| o.status.success())
+            .map(|s| s.status.success())
             .unwrap_or(false);
 
         if supported {
@@ -81,7 +83,7 @@ impl Makepkg {
                 .arg("-xf")
                 .arg(&srcfile)
                 .current_dir(&dirs.srcdir)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .cmd_context(&command, Context::ExtractSources)?;
         }
 

@@ -29,11 +29,12 @@ impl FakeRoot {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Makepkg {
     pub config: Config,
-    pub(crate) callbacks: Option<Box<RefCell<dyn Callbacks>>>,
+    pub(crate) callbacks: RefCell<Option<Box<dyn Callbacks>>>,
     pub(crate) fakeroot: RefCell<Option<FakeRoot>>,
+    pub(crate) id: RefCell<usize>,
 }
 
 impl Makepkg {
@@ -45,7 +46,9 @@ impl Makepkg {
     pub fn from_config(config: Config) -> Makepkg {
         Makepkg {
             config,
-            ..Makepkg::default()
+            callbacks: RefCell::new(None),
+            fakeroot: RefCell::new(None),
+            id: RefCell::new(0),
         }
     }
 
@@ -55,5 +58,10 @@ impl Makepkg {
 
     pub fn pkgbuild_dirs(&self, pkgbuild: &Pkgbuild) -> Result<PkgbuildDirs> {
         self.config.pkgbuild_dirs(pkgbuild)
+    }
+
+    pub fn callbacks<CB: Callbacks>(mut self, callbacks: CB) -> Self {
+        self.callbacks = RefCell::new(Some(Box::new(callbacks)));
+        self
     }
 }

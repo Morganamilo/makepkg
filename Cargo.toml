@@ -16,9 +16,23 @@ sha1 = "0.10.6"
 sha2 = "0.10.8"
 blake2 = "0.10.6"
 walkdir = "2.4.0"
+mio = { version = "0.8.10", features = ["net", "os-poll", "os-ext"] }
+crossbeam-channel = "0.5.11"
 
 [dev-dependencies]
 ansi_term = "0.12.1"
 
 [build-dependencies]
 dotenvy = "0.15.7"
+
+[profile.dev.package.digest]
+opt-level = 3
+
+[profile.dev.package.md-5]
+opt-level = 3
+
+[profile.dev.package.sha1]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3

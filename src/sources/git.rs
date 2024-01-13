@@ -1,10 +1,11 @@
 use std::process::Command;
 
 use crate::{
-    callback::Event,
+    callback::{CommandKind, Event},
     config::PkgbuildDirs,
     error::{CommandErrorExt, CommandOutputExt, Context, DownloadError, Result},
-    pkgbuild::{Fragment, Source},
+    pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
     Makepkg, Options, TOOL_NAME,
 };
@@ -13,6 +14,7 @@ impl Makepkg {
     pub(crate) fn download_git(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         options: &Options,
         source: &Source,
     ) -> Result<()> {
@@ -35,18 +37,17 @@ impl Makepkg {
                 .arg("--")
                 .arg(&source.url)
                 .arg(path)
-                .env("GIT_TERMINAL_PROMPT", "0");
-            let status = command.status();
-            status.download_context(source, &command, Context::None)?;
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
+                .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
             let mut command = Command::new("git");
-            command
+            let remote_url = command
                 .arg("config")
                 .arg("--get")
                 .arg("remote.origin.url")
-                .current_dir(dirs.download_path(source));
-            let remote_url = command
-                .output()
+                .current_dir(dirs.download_path(source))
+                .process_read(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_read(source, &command, Context::None)?;
 
             if remote_url.trim_end_matches(".git") != source.url.trim_end_matches(".git") {
@@ -64,14 +65,19 @@ impl Makepkg {
                 .arg("-p")
                 .env("GIT_TERMINAL_PROMPT", "0")
                 .current_dir(dirs.download_path(source))
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn extract_git(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
+    pub(crate) fn extract_git(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        source: &Source,
+    ) -> Result<()> {
         let mut gitref = "origin/HEAD".to_string();
         let mut updating = false;
         let srcpath = dirs.srcdir.join(source.file_name());
@@ -83,7 +89,7 @@ impl Makepkg {
             command
                 .arg("fetch")
                 .current_dir(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else {
             let mut command = Command::new("git");
@@ -95,7 +101,7 @@ impl Makepkg {
                 .arg(source.file_name())
                 .current_dir(&dirs.srcdir)
                 .env("GIT_TERMINAL_PROMPT", "0")
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
@@ -115,14 +121,13 @@ impl Makepkg {
 
         if let Some(frag @ Fragment::Tag(_)) = &source.fragment {
             let mut command = Command::new("git");
-            command
+            let tagname = command
                 .arg("tag")
                 .arg("-l")
                 .arg("--format=%(tag)")
                 .arg(&gitref)
-                .arg(&srcpath);
-            let tagname = command
-                .output()
+                .current_dir(&srcpath)
+                .process_read(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_read(source, &command, Context::None)?;
 
             if tagname.is_empty() {
@@ -150,7 +155,7 @@ impl Makepkg {
                 .arg(&gitref)
                 .arg("--")
                 .current_dir(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 

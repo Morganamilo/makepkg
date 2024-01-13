@@ -3,15 +3,17 @@ use std::process::Command;
 use crate::{
     config::PkgbuildDirs,
     error::{CommandError, CommandErrorExt, Context, DownloadError, Result},
-    pkgbuild::{Fragment, Source},
+    pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
-    Event, Makepkg, Options,
+    CommandKind, Event, Makepkg, Options,
 };
 
 impl Makepkg {
     pub(crate) fn download_hg(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         options: &Options,
         source: &Source,
     ) -> Result<()> {
@@ -32,7 +34,7 @@ impl Makepkg {
                 .arg(&url)
                 .arg(&repopath)
                 .current_dir(&dirs.srcdest)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
             self.event(Event::UpdatingVCS(VCSKind::Mercurial, source.clone()));
@@ -41,14 +43,19 @@ impl Makepkg {
             command
                 .arg("pull")
                 .current_dir(repopath)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn extract_hg(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
+    pub(crate) fn extract_hg(
+        &self,
+        dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
+        source: &Source,
+    ) -> Result<()> {
         self.event(Event::ExtractingVCS(VCSKind::Mercurial, source.clone()));
 
         let srcpath = dirs.srcdir.join(source.file_name());
@@ -62,13 +69,14 @@ impl Makepkg {
             .arg("@")
             .arg(&repopath)
             .current_dir(&dirs.srcdest)
-            .status()
+            .process_output()
             .map_err(|e| {
                 DownloadError::Command(
                     source.clone(),
                     CommandError::exec(e, &command, Context::ExtractSources),
                 )
             })?
+            .status
             .success()
         {
             hgref = "@".to_string();
@@ -94,7 +102,7 @@ impl Makepkg {
             command
                 .arg("pull")
                 .current_dir(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
             command = Command::new("hg");
             command
@@ -102,7 +110,7 @@ impl Makepkg {
                 .arg("-Cr")
                 .arg(&hgref)
                 .current_dir(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else {
             let mut command = Command::new("hg");
@@ -112,7 +120,7 @@ impl Makepkg {
                 .arg(&hgref)
                 .arg(&repopath)
                 .arg(&srcpath)
-                .status()
+                .process_spawn(self, CommandKind::ExtractSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 

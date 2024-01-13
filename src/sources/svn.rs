@@ -1,21 +1,21 @@
 use std::process::Command;
 
-use walkdir::WalkDir;
-
 use crate::{
     config::PkgbuildDirs,
-    error::{CommandErrorExt, IOContext, IOErrorExt},
+    error::CommandErrorExt,
     error::{Context, DownloadError, Result},
-    fs::{copy, make_link, mkdir, read_link},
-    pkgbuild::{Fragment, Source},
+    fs::{copy_dir, mkdir},
+    pkgbuild::{Fragment, Pkgbuild, Source},
+    run::CommandOutput,
     sources::VCSKind,
-    Event, Makepkg, Options, TOOL_NAME,
+    CommandKind, Event, Makepkg, Options, TOOL_NAME,
 };
 
 impl Makepkg {
     pub(crate) fn download_svn(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         options: &Options,
         source: &Source,
     ) -> Result<()> {
@@ -57,7 +57,7 @@ impl Makepkg {
                 .arg(&url)
                 .arg(&repopath)
                 .current_dir(&dirs.srcdest)
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
             self.event(Event::UpdatingVCS(VCSKind::Svn, source.clone()));
@@ -68,7 +68,7 @@ impl Makepkg {
                 .arg("-r")
                 .arg(&svnref)
                 .current_dir(dirs.download_path(source))
-                .status()
+                .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         }
 
@@ -80,31 +80,7 @@ impl Makepkg {
 
         let repopath = dirs.download_path(source);
         let srcrepopath = dirs.srcdir.join(source.file_name());
-        mkdir(srcrepopath, Context::ExtractSources)?;
-
-        // Walk through all files / dirs in the cloned repo as we cannot directly `cp -r`, instead copy individually
-        for file in WalkDir::new(&repopath) {
-            let file = file.context(
-                Context::ExtractSources,
-                IOContext::ReadDir(repopath.clone()),
-            )?;
-            let ty = file.file_type();
-            let rel_path = &file.path().strip_prefix(&dirs.srcdest).context(
-                Context::ExtractSources,
-                IOContext::ReadDir(repopath.clone()),
-            )?;
-            let path = dirs.srcdir.join(rel_path);
-
-            if ty.is_dir() {
-                mkdir(&path, Context::ExtractSources)?;
-            } else if ty.is_symlink() {
-                let pointer = read_link(file.path(), Context::ExtractSources)?;
-                make_link(pointer, path, Context::ExtractSources)?;
-            } else {
-                copy(file.path(), path, Context::ExtractSources)?;
-            }
-        }
-
+        copy_dir(repopath, srcrepopath, Context::ExtractSources)?;
         Ok(())
     }
 }

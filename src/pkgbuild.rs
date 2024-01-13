@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::BTreeSet,
     fmt::Display,
     fs::read_to_string,
     path::{Path, PathBuf},
@@ -57,13 +57,13 @@ impl Function {
     }
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Key {
     name: String,
     arch: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArchVecs<T> {
     pub values: Vec<ArchVec<T>>,
 }
@@ -155,7 +155,7 @@ impl OptionState {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Options {
     pub values: Vec<OptionValue>,
 }
@@ -363,7 +363,7 @@ impl Source {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pkgbuild {
     pub pkgbase: String,
     pub pkgver: String,
@@ -401,7 +401,7 @@ pub struct Pkgbuild {
     pub(crate) package_functions: Vec<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Package {
     pub pkgname: String,
     pub pkgdesc: Option<String>,
@@ -418,7 +418,7 @@ pub struct Package {
     pub provides: ArchVecs<String>,
     pub replaces: ArchVecs<String>,
     pub options: Options,
-    overridden: HashSet<Key>,
+    overridden: BTreeSet<Key>,
 }
 
 impl Pkgbuild {
@@ -689,7 +689,7 @@ impl Pkgbuild {
             provides: self.provides.clone(),
             replaces: self.replaces.clone(),
             options: self.options.clone(),
-            overridden: HashSet::new(),
+            overridden: BTreeSet::new(),
         }
     }
 }
@@ -738,10 +738,18 @@ impl Config {
 
 #[cfg(test)]
 mod test {
-    use std::io::{stdout, Write};
-    use ansi_term::{Color, Style};
-    use crate::{Callbacks, Event, LogLevel, LogMessage, Makepkg, Options};
     use super::*;
+    use crate::{
+        callback::{Callbacks, CommandOutput, Event, LogLevel, LogMessage},
+        fs::write,
+        CommandKind, Makepkg, Options,
+    };
+    use ansi_term::{Color, Style};
+    use std::{
+        fs::File,
+        io::{stdout, Write},
+        process::Stdio,
+    };
 
     #[derive(Debug)]
     pub struct PrettyPrinter;
@@ -798,12 +806,55 @@ mod test {
                 _ => (),
             }
         }
+
+        fn command_new(&mut self, id: usize, kind: CommandKind) -> crate::callback::CommandOutput {
+            print!(" | on new: -> {} <- | {:?}\n", id, kind.pkgbuild().pkgbase);
+            //CommandOutput::Callback
+            //CommandOutput::Null
+            //CommandOutput::Inherit
+            CommandOutput::File(
+                File::options()
+                    .create(true)
+                    .write(true)
+                    .append(true)
+                    .open("awaw")
+                    .unwrap(),
+            )
+        }
+        fn command_output(&mut self, id: usize, output: &[u8]) {
+            let mut stdout = stdout().lock();
+            let output = output.to_ascii_uppercase();
+
+            /* for line in output.split(|c| *c == b'\n') {
+                let mut line = line;
+                while !line.is_empty() {
+                    if self.cursor == 0 {
+                        print!("\n  pkgbuild output -> ");
+                    }
+                    if self.cursor + line.len() > 30 {
+                        let l = &line[..30 - self.cursor];
+                        line = &line[30 - self.cursor..];
+                        stdout.write_all(l).unwrap();
+                        self.cursor = 0;
+                    } else {
+                        stdout.write_all(&line).unwrap();
+                        self.cursor += line.len();
+                        line = &[];
+                    }
+                }
+                self.cursor = 0;
+            }*/
+            //print!("{}: ", id);
+            print!(" -> {} <- ", id);
+            stdout.write_all(&output).unwrap();
+            //println!("{}", output.len());
+        }
     }
 
     #[ignore]
     #[test]
     fn geninteg() {
-        let config = Makepkg::new().unwrap().callback(PrettyPrinter);
+        let config = Makepkg::new().unwrap().callbacks(PrettyPrinter);
         let mut options = Options::new();
         options.clean_build = true;
         options.recreate_package = true;
@@ -815,17 +866,23 @@ mod test {
 
     #[test]
     fn lint_pkgbuild() {
-        let makepkg = Makepkg::new().unwrap().callback(PrettyPrinter);
+        let f = File::options()
+            .truncate(true)
+            .write(true)
+            .create(true)
+            .open("aaaaaaaaaaaaa")
+            .unwrap();
+
+        let makepkg = Makepkg::new().unwrap().callbacks(PrettyPrinter);
+        //println!("{:#?}", makepkg.config());
         let mut options = Options::new();
         options.clean_build = true;
         options.recreate_package = true;
         options.ignore_arch = true;
+        options.log = true;
         //options.no_build = true;
+
         let mut pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
-        println!("{}", makepkg.geninteg(&options, &pkgbuild).unwrap());
-        for pkg in makepkg.config.package_list(&pkgbuild).unwrap() {
-            println!(" --- {}", pkg.display());
-        }
         let res = makepkg.build(&options, &mut pkgbuild);
 
         match res {

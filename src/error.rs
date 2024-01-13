@@ -236,6 +236,7 @@ impl ParseError {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Context {
+    SpawnWorkerThread,
     IntegrityCheck,
     RetrieveSources,
     ExtractSources,
@@ -255,12 +256,14 @@ pub enum Context {
     QueryPacman,
     RunPacman,
     StartFakeroot,
+    SetMakepkgOutput,
     None,
 }
 
 impl Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Context::SpawnWorkerThread => f.write_str("failed to spawn worker thread"),
             Context::IntegrityCheck => f.write_str("failed to validate sources"),
             Context::RetrieveSources => f.write_str("failed to download sources"),
             Context::ExtractSources => f.write_str("failed to extract sources"),
@@ -280,6 +283,7 @@ impl Display for Context {
             Context::QueryPacman => write!(f, "failed to query pacman"),
             Context::RunPacman => write!(f, "failed to run pacman"),
             Context::StartFakeroot => write!(f, "failed to start fakeroot"),
+            Context::SetMakepkgOutput => write!(f, "failed to configure output location"),
             Context::None => f.write_str("no context"),
         }
     }
