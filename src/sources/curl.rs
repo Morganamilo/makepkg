@@ -93,7 +93,7 @@ impl Makepkg {
                 if let Some(source) = sources.pop() {
                     let curl =
                         self.make_payload(dirs, pkgbuild, source, total - sources.len(), total)?;
-                    self.event(Event::DownloadingCurl(source.file_name().to_string()))?;
+                    self.event(Event::DownloadingCurl(source.file_name()))?;
                     let handle = curlm.add2(curl)?;
                     handles.push(handle);
                     running += 1;

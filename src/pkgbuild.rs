@@ -741,14 +741,12 @@ mod test {
     use super::*;
     use crate::{
         callback::{Callbacks, CommandOutput, Event, LogLevel, LogMessage},
-        fs::write,
         CommandKind, Makepkg, Options,
     };
     use ansi_term::{Color, Style};
     use std::{
         fs::File,
         io::{stdout, Write},
-        process::Stdio,
     };
 
     #[derive(Debug)]

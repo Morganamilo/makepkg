@@ -41,7 +41,7 @@ impl Makepkg {
         }
 
         if !repopath.exists() {
-            self.event(Event::DownloadingVCS(VCSKind::Svn, source.clone()))?;
+            self.event(Event::DownloadingVCS(VCSKind::Svn, source))?;
 
             let dir = repopath.join(format!(".{}", TOOL_NAME));
             mkdir(&repopath, Context::RetrieveSources)?;
@@ -60,7 +60,7 @@ impl Makepkg {
                 .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
-            self.event(Event::UpdatingVCS(VCSKind::Svn, source.clone()))?;
+            self.event(Event::UpdatingVCS(VCSKind::Svn, source))?;
 
             let mut command = Command::new("svn");
             command
@@ -76,7 +76,7 @@ impl Makepkg {
     }
 
     pub(crate) fn extract_svn(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<()> {
-        self.event(Event::ExtractingVCS(VCSKind::Svn, source.clone()))?;
+        self.event(Event::ExtractingVCS(VCSKind::Svn, source))?;
 
         let repopath = dirs.download_path(source);
         let srcrepopath = dirs.srcdir.join(source.file_name());

@@ -114,7 +114,7 @@ impl Makepkg {
             if let Some(tool) = source.vcs_kind() {
                 vcs_downloads.entry(tool).or_default().push(source);
             } else if path.exists() {
-                self.event(Event::FoundSource(source.file_name().to_string()))?;
+                self.event(Event::FoundSource(source.file_name()))?;
                 continue;
             } else if !source.is_remote() {
                 return Err(DownloadError::SourceMissing(source.clone()).into());

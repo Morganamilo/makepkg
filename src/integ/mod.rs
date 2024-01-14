@@ -134,7 +134,7 @@ impl Makepkg {
         let mut ok = true;
 
         let file = source.file_name();
-        self.event(Event::VerifyingSignature(file.to_string()))?;
+        self.event(Event::VerifyingSignature(file))?;
 
         for sig in res.signatures() {
             let fingerprint = sig
@@ -153,7 +153,7 @@ impl Makepkg {
                     self.event(SigFailed::new(file, fingerprint, SigFailedKind::Expired).into())?;
                 } else {
                     let d = err.to_string();
-                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Other(d)).into())?;
+                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Other(&d)).into())?;
                 }
                 continue;
             }
@@ -174,7 +174,7 @@ impl Makepkg {
                 )?;
                 ok = false;
             } else {
-                self.event(Event::SignatureCheckPass(file.to_string()))?
+                self.event(Event::SignatureCheckPass(file))?
             }
         }
 
@@ -230,7 +230,7 @@ impl Makepkg {
         b2: &[String],
     ) -> Result<bool> {
         let mut failed = Vec::new();
-        self.event(Event::VerifyingChecksum(source.file_name().to_string()))?;
+        self.event(Event::VerifyingChecksum(source.file_name()))?;
 
         if [
             md5.get(n),
@@ -244,7 +244,7 @@ impl Makepkg {
         .flatten()
         .all(|v| *v == "SKIP")
         {
-            self.event(Event::ChecksumSkipped(source.file_name().to_string()))?;
+            self.event(Event::ChecksumSkipped(source.file_name()))?;
             return Ok(true);
         }
 
@@ -256,13 +256,10 @@ impl Makepkg {
         self.verify_file_checksum::<Blake2b512>(dirs, p, source, b2.get(n), "B2", &mut failed)?;
 
         if !failed.is_empty() {
-            self.event(Event::ChecksumFailed(
-                source.file_name().to_string(),
-                failed.into_iter().map(|s| s.to_string()).collect(),
-            ))?;
+            self.event(Event::ChecksumFailed(source.file_name(), &failed))?;
             Ok(false)
         } else {
-            self.event(Event::ChecksumPass(source.file_name().to_string()))?;
+            self.event(Event::ChecksumPass(source.file_name()))?;
             Ok(true)
         }
     }

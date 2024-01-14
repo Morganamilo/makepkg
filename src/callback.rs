@@ -117,17 +117,17 @@ impl Callbacks for CallBackPrinter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SigFailedKind {
+pub enum SigFailedKind<'a> {
     NotSigned,
     UnknownPublicKey,
     Revoked,
     Expired,
     NotTrusted,
     NotInValidPgpKeys,
-    Other(String),
+    Other(&'a str),
 }
 
-impl Display for SigFailedKind {
+impl<'a> Display for SigFailedKind<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SigFailedKind::NotSigned => write!(f, "not signed"),
@@ -142,76 +142,76 @@ impl Display for SigFailedKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SigFailed {
-    pub file_name: String,
-    pub fingerprint: String,
-    pub kind: SigFailedKind,
+pub struct SigFailed<'a> {
+    pub file_name: &'a str,
+    pub fingerprint: &'a str,
+    pub kind: SigFailedKind<'a>,
 }
 
-impl Display for SigFailed {
+impl<'a> Display for SigFailed<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.kind, self.fingerprint)
     }
 }
 
-impl SigFailed {
-    pub(crate) fn new<S: Into<String>>(file_name: S, fingerprint: S, kind: SigFailedKind) -> Self {
+impl<'a> SigFailed<'a> {
+    pub(crate) fn new(file_name: &'a str, fingerprint: &'a str, kind: SigFailedKind<'a>) -> Self {
         SigFailed {
-            file_name: file_name.into(),
-            fingerprint: fingerprint.into(),
+            file_name,
+            fingerprint,
             kind,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Event {
-    BuildingPackage(String, String),
-    BuildingSourcePackage(String, String),
-    BuiltPackage(String, String),
-    BuiltSourcePackage(String, String),
-    CreatingArchive(String),
+pub enum Event<'a> {
+    BuildingPackage(&'a str, &'a str),
+    BuildingSourcePackage(&'a str, &'a str),
+    BuiltPackage(&'a str, &'a str),
+    BuiltSourcePackage(&'a str, &'a str),
+    CreatingArchive(&'a str),
     RetrievingSources,
-    FoundSource(String),
-    Downloading(String),
-    DownloadingCurl(String),
+    FoundSource(&'a str),
+    Downloading(&'a str),
+    DownloadingCurl(&'a str),
     VerifyingSignatures,
     VerifyingChecksums,
-    VerifyingSignature(String),
-    VerifyingChecksum(String),
-    ChecksumSkipped(String),
-    ChecksumFailed(String, Vec<String>),
-    ChecksumPass(String),
-    SignatureCheckFailed(SigFailed),
-    SignatureCheckPass(String),
+    VerifyingSignature(&'a str),
+    VerifyingChecksum(&'a str),
+    ChecksumSkipped(&'a str),
+    ChecksumFailed(&'a str, &'a [&'a str]),
+    ChecksumPass(&'a str),
+    SignatureCheckFailed(SigFailed<'a>),
+    SignatureCheckPass(&'a str),
     ExtractingSources,
     GeneratingChecksums,
     SourcesAreReady,
-    NoExtact(String),
-    Extacting(String),
-    RunningFunction(String),
+    NoExtact(&'a str),
+    Extacting(&'a str),
+    RunningFunction(&'a str),
     RemovingSrcdir,
     RemovingPkgdir,
     UsingExistingSrcdir,
     StartingFakeroot,
-    CreatingPackage(String),
-    CreatingDebugPackage(String),
-    CreatingSourcePackage(String),
+    CreatingPackage(&'a str),
+    CreatingDebugPackage(&'a str),
+    CreatingSourcePackage(&'a str),
     AddingPackageFiles,
-    AddingFileToPackage(String),
-    GeneratingPackageFile(String),
-    DownloadingVCS(VCSKind, Source),
-    UpdatingVCS(VCSKind, Source),
-    ExtractingVCS(VCSKind, Source),
+    AddingFileToPackage(&'a str),
+    GeneratingPackageFile(&'a str),
+    DownloadingVCS(VCSKind, &'a Source),
+    UpdatingVCS(VCSKind, &'a Source),
+    ExtractingVCS(VCSKind, &'a Source),
 }
 
-impl From<SigFailed> for Event {
-    fn from(value: SigFailed) -> Self {
+impl<'a> From<SigFailed<'a>> for Event<'a> {
+    fn from(value: SigFailed<'a>) -> Self {
         Event::SignatureCheckFailed(value)
     }
 }
 
-impl Display for Event {
+impl<'a> Display for Event<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Event::BuildingPackage(name, ver) => write!(f, "Package {}-{}", name, ver),
@@ -280,14 +280,14 @@ impl Display for LogLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum LogMessage {
+pub enum LogMessage<'a> {
     SkippingAllIntegrityChecks,
     SkippingPGPIntegrityChecks,
     SkippingChecksumIntegrityChecks,
-    KeyNotDoundInKeys(String),
+    KeyNotDoundInKeys(&'a str),
 }
 
-impl Display for LogMessage {
+impl<'a> Display for LogMessage<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LogMessage::SkippingAllIntegrityChecks => f.write_str("skipping all integrity checks"),

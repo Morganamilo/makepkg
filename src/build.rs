@@ -15,8 +15,8 @@ impl Makepkg {
         umask(Mode::from_bits_truncate(0o022));
 
         self.event(Event::BuildingPackage(
-            pkgbuild.pkgbase.clone(),
-            pkgbuild.version(),
+            &pkgbuild.pkgbase,
+            &pkgbuild.version(),
         ))?;
 
         let config = &self.config;
@@ -87,10 +87,7 @@ impl Makepkg {
             }
         }
 
-        self.event(Event::BuiltPackage(
-            pkgbuild.pkgbase.clone(),
-            pkgbuild.version(),
-        ))?;
+        self.event(Event::BuiltPackage(&pkgbuild.pkgbase, &pkgbuild.version()))?;
 
         Ok(())
     }

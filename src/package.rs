@@ -56,9 +56,9 @@ impl Makepkg {
         debug: bool,
     ) -> Result<()> {
         if debug {
-            self.event(Event::CreatingDebugPackage(pkg.pkgname.to_string()))?;
+            self.event(Event::CreatingDebugPackage(&pkg.pkgname))?;
         } else {
-            self.event(Event::CreatingPackage(pkg.pkgname.to_string()))?;
+            self.event(Event::CreatingPackage(&pkg.pkgname))?;
         }
 
         let pkgdir = dirs.pkgdir(pkg);
@@ -68,7 +68,7 @@ impl Makepkg {
 
         if let Some(install) = &pkg.install {
             let dest = pkgdir.join(".INSTALL");
-            self.event(Event::AddingFileToPackage(install.to_string()))?;
+            self.event(Event::AddingFileToPackage(install))?;
             let install = dirs.startdir.join(install);
             copy(install, &dest, Context::CreatePackage)?;
             std::fs::set_permissions(&dest, PermissionsExt::from_mode(0o644))
@@ -76,7 +76,7 @@ impl Makepkg {
         }
 
         if let Some(changelog) = &pkg.changelog {
-            self.event(Event::AddingFileToPackage(changelog.to_string()))?;
+            self.event(Event::AddingFileToPackage(changelog))?;
             let changelog = dirs.startdir.join(changelog);
             let dest = pkgdir.join(".CHANGELOG");
             copy(changelog, &dest, Context::CreatePackage)?;
@@ -106,7 +106,7 @@ impl Makepkg {
         pkgbuild: &Pkgbuild,
         pkg: &Package,
     ) -> Result<()> {
-        self.event(Event::GeneratingPackageFile(".MTREE".to_string()))?;
+        self.event(Event::GeneratingPackageFile(".MTREE"))?;
         let pkgdir = dirs.pkgdir(pkg);
         let files = self.package_files(&pkgdir)?;
 
@@ -188,7 +188,7 @@ impl Makepkg {
         let files = if srcpkg {
             Vec::new()
         } else {
-            self.event(Event::GeneratingPackageFile(pkgfilename.clone()))?;
+            self.event(Event::GeneratingPackageFile(&pkgfilename))?;
             self.package_files(&pkgdir)?
         };
 
@@ -243,7 +243,7 @@ impl Makepkg {
         pkgbuild: &Pkgbuild,
         pkg: &Package,
     ) -> Result<()> {
-        self.event(Event::GeneratingPackageFile(".BUILDINFO".to_string()))?;
+        self.event(Event::GeneratingPackageFile(".BUILDINFO"))?;
         let binfo = dirs.pkgdir(pkg).join(".BUILDINFO");
         let mut file = File::options();
         file.write(true).create(true).truncate(true);
@@ -309,7 +309,7 @@ impl Makepkg {
         pkg: &Package,
         debug: bool,
     ) -> Result<()> {
-        self.event(Event::GeneratingPackageFile(".PKGINFO".to_string()))?;
+        self.event(Event::GeneratingPackageFile(".PKGINFO"))?;
 
         let size = self.package_size(dirs, pkg)?;
         let c = self.config();
@@ -457,7 +457,7 @@ impl Makepkg {
     }
 
     fn copy_to_srcpkg(&self, from: &Path, to: &Path, name: &str) -> Result<()> {
-        self.event(Event::AddingFileToPackage(name.to_string()))?;
+        self.event(Event::AddingFileToPackage(name))?;
         copy_dir(from, to, Context::BuildPackage)?;
         Ok(())
     }
@@ -472,8 +472,8 @@ impl Makepkg {
         umask(Mode::from_bits_truncate(0o022));
 
         self.event(Event::BuildingSourcePackage(
-            pkgbuild.pkgbase.to_string(),
-            pkgbuild.version(),
+            &pkgbuild.pkgbase,
+            &pkgbuild.version(),
         ))?;
 
         if !options.rebuild {
@@ -496,7 +496,7 @@ impl Makepkg {
         mkdir(&dirs.srcpkgdir, Context::BuildPackage)?;
 
         self.copy_to_srcpkg(&start.join("PKGBUILD"), &dest.join("PKGBUILD"), "PKGBUILD")?;
-        self.event(Event::AddingFileToPackage(".SRCINFO".to_string()))?;
+        self.event(Event::AddingFileToPackage(".SRCINFO"))?;
         write(
             dest.join(".SRCINFO"),
             pkgbuild.srcinfo(),
@@ -522,7 +522,7 @@ impl Makepkg {
                 let keyfile = format!("{}.asc", fkey);
                 let key = Path::new("keys/pgp").join(&keyfile);
                 if !dirs.startdir.join(&key).exists() {
-                    self.log(LogLevel::Warning, LogMessage::KeyNotDoundInKeys(keyfile))?;
+                    self.log(LogLevel::Warning, LogMessage::KeyNotDoundInKeys(&keyfile))?;
                     continue;
                 }
 
@@ -559,8 +559,8 @@ impl Makepkg {
             self.make_archive(&dirs, pkgbuild, pkg, true)?;
 
             self.event(Event::BuiltSourcePackage(
-                pkgbuild.pkgbase.clone(),
-                pkgbuild.version(),
+                &pkgbuild.pkgbase,
+                &pkgbuild.version(),
             ))?;
         }
 

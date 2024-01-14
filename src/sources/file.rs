@@ -34,7 +34,7 @@ impl Makepkg {
                     *arg = arg.replace("%o", &part);
                 }
 
-                self.event(Event::Downloading(source.file_name().to_string()))?;
+                self.event(Event::Downloading(source.file_name()))?;
                 let mut command = Command::new(&agent.command);
                 command
                     .args(&args)
@@ -63,7 +63,7 @@ impl Makepkg {
         make_link(srcdestfile, &srcfile, Context::ExtractSources)?;
 
         if pkgbuild.noextract.iter().any(|s| s == source.file_name()) {
-            self.event(Event::NoExtact(source.file_name().to_string()))?;
+            self.event(Event::NoExtact(source.file_name()))?;
             return Ok(());
         }
 
@@ -77,7 +77,7 @@ impl Makepkg {
             .unwrap_or(false);
 
         if supported {
-            self.event(Event::Extacting(source.file_name().to_string()))?;
+            self.event(Event::Extacting(source.file_name()))?;
             let mut command = Command::new("bsdtar");
             command
                 .arg("-xf")

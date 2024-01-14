@@ -430,7 +430,7 @@ impl Makepkg {
         function: &str,
         capture_output: bool,
     ) -> Result<String> {
-        self.event(Event::RunningFunction(function.to_string()))?;
+        self.event(Event::RunningFunction(function))?;
 
         let workingdir = match function {
             "verify" => dirs.startdir.as_path(),
