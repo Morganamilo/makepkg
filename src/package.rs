@@ -139,7 +139,7 @@ impl Makepkg {
             .process_pipe(
                 self,
                 CommandKind::BuildingPackage(pkgbuild),
-                Some(files.as_slice()),
+                files.as_slice(),
                 &mut gzip,
             )
             .cmd_context(&tarcmd, Context::GeneratePackageFile(".MTREE".into()))?;
@@ -229,7 +229,7 @@ impl Makepkg {
             .process_pipe(
                 self,
                 CommandKind::BuildingPackage(pkgbuild),
-                Some(files.as_slice()),
+                files.as_slice(),
                 &mut zipcmd,
             )
             .cmd_context(&tarcmd, Context::CreatePackage)?;
@@ -471,14 +471,14 @@ impl Makepkg {
         let mut added = HashSet::new();
         umask(Mode::from_bits_truncate(0o022));
 
-        if !options.recreate_package {
-            self.err_if_srcpkg_built(options, pkgbuild)?;
-        }
-
         self.event(Event::BuildingSourcePackage(
             pkgbuild.pkgbase.to_string(),
             pkgbuild.version(),
         ));
+
+        if !options.recreate_package {
+            self.err_if_srcpkg_built(options, pkgbuild)?;
+        }
 
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
         let start = dirs.startdir.as_path();

@@ -14,6 +14,11 @@ impl Makepkg {
     pub fn build(&self, options: &Options, pkgbuild: &mut Pkgbuild) -> Result<()> {
         umask(Mode::from_bits_truncate(0o022));
 
+        self.event(Event::BuildingPackage(
+            pkgbuild.pkgbase.clone(),
+            pkgbuild.version(),
+        ));
+
         let config = &self.config;
 
         if !options.ignore_arch && !self.arch_supported(pkgbuild) {
@@ -27,11 +32,6 @@ impl Makepkg {
         if !pkgbuild.has_function(Function::Pkgver) {
             self.err_if_built(options, pkgbuild)?;
         }
-
-        self.event(Event::BuildingPackage(
-            pkgbuild.pkgbase.clone(),
-            pkgbuild.version(),
-        ));
 
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
 

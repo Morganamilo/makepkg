@@ -1,7 +1,12 @@
 [package]
-name = "pkgbuild"
+name = "makepkg"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "makepkg"
+required-features = ["cmd"]
+path = "src/main/main.rs"
 
 [dependencies]
 curl = { version = "0.4.44", features = ["protocol-ftp", "http2"] }
@@ -19,8 +24,20 @@ walkdir = "2.4.0"
 mio = { version = "0.8.10", features = ["net", "os-poll", "os-ext"] }
 crossbeam-channel = "0.5.11"
 
+
+ansi_term = { version =  "0.12.1", optional = true }
+anyhow = { version = "1.0.75", optional = true }
+clap = { version = "4.4.11", features = ["derive"], optional = true }
+indicatif = { version = "0.17.7", optional = true }
+terminal_size = { version = "0.3.0", optional = true }
+globset = { version = "0.4.14", optional = true }
+
 [dev-dependencies]
 ansi_term = "0.12.1"
+
+[features]
+cmd = ["ansi_term", "anyhow", "clap", "indicatif", "terminal_size", "globset"]
+default = ["cmd"]
 
 [build-dependencies]
 dotenvy = "0.15.7"

@@ -206,7 +206,7 @@ impl Display for Event {
             Event::ChecksumPass(_) => write!(f, "Passsed"),
             Event::SignatureCheckFailed(e) => write!(f, "Failed ({})", e),
             Event::SignatureCheckPass(_) => write!(f, "Passsed"),
-            Event::GeneratingChecksums => write!(f, "Generating checksums for source files"),
+            Event::GeneratingChecksums => write!(f, "Generating checksums for source files..."),
             Event::ExtractingSources => write!(f, "ExtractingSources..."),
             Event::SourcesAreReady => write!(f, "Sources are ready"),
             Event::NoExtact(file) => write!(f, "skipping {} (no extract)", file),

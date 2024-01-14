@@ -32,7 +32,7 @@ pub(crate) trait CommandOutput {
         &mut self,
         makepkg: &Makepkg,
         kind: CommandKind,
-        input: Option<&[u8]>,
+        input: &[u8],
         output: Option<&mut W>,
         ignore_stdout: bool,
         pipe_into: Option<&mut Command>,
@@ -42,7 +42,7 @@ pub(crate) trait CommandOutput {
         &mut self,
         makepkg: &Makepkg,
         kind: CommandKind,
-        input: Option<&[u8]>,
+        input: &[u8],
         pipe_into: &mut Command,
     ) -> StdResult<ExitStatus, io::Error> {
         self.process_inner::<Empty>(makepkg, kind, input, None, true, Some(pipe_into), None)
@@ -51,7 +51,7 @@ pub(crate) trait CommandOutput {
         &mut self,
         makepkg: &Makepkg,
         kind: CommandKind,
-        input: Option<&[u8]>,
+        input: &[u8],
         pkgver: Option<&mut Vec<u8>>,
         logfile: Option<&mut File>,
     ) -> StdResult<ExitStatus, io::Error> {
@@ -61,7 +61,7 @@ pub(crate) trait CommandOutput {
         &mut self,
         makepkg: &Makepkg,
         kind: CommandKind,
-        input: Option<&[u8]>,
+        input: &[u8],
         output: Option<&mut W>,
     ) -> StdResult<ExitStatus, io::Error> {
         let ignore_stdout = output.is_some();
@@ -73,14 +73,14 @@ pub(crate) trait CommandOutput {
         kind: CommandKind,
         output: &mut W,
     ) -> StdResult<ExitStatus, io::Error> {
-        self.process_inner(makepkg, kind, None, Some(output), true, None, None)
+        self.process_inner(makepkg, kind, &[], Some(output), true, None, None)
     }
     fn process_spawn(
         &mut self,
         makepkg: &Makepkg,
         kind: CommandKind,
     ) -> StdResult<ExitStatus, io::Error> {
-        self.process_inner::<Empty>(makepkg, kind, None, None, false, None, None)
+        self.process_inner::<Empty>(makepkg, kind, &[], None, false, None, None)
     }
     fn process_read(
         &mut self,
@@ -89,7 +89,7 @@ pub(crate) trait CommandOutput {
     ) -> StdResult<Output, io::Error> {
         let mut output = Vec::new();
         let output = Output {
-            status: self.process_inner(makepkg, kind, None, Some(&mut output), true, None, None)?,
+            status: self.process_inner(makepkg, kind, &[], Some(&mut output), true, None, None)?,
             stdout: output,
             stderr: Vec::new(),
         };
@@ -107,7 +107,7 @@ impl CommandOutput for Command {
         &mut self,
         makepkg: &Makepkg,
         kind: CommandKind,
-        input: Option<&[u8]>,
+        mut input: &[u8],
         mut output: Option<&mut W>,
         ignore_stdout: bool,
         pipe_into: Option<&mut Command>,
@@ -210,7 +210,7 @@ impl CommandOutput for Command {
             self.stdout(Stdio::null());
         }
 
-        let mut input = if let Some(input) = input {
+        if !input.is_empty() {
             let (r, w) = UnixStream::pair()?;
             w.set_nonblocking(true)?;
             let mut w = mio::net::UnixStream::from_std(w);
@@ -220,11 +220,9 @@ impl CommandOutput for Command {
                 .register(&mut w, token_in, Interest::WRITABLE)?;
             open |= token_in.0;
             insock = Some(w);
-            input
         } else {
             self.stdin(Stdio::null());
-            &[]
-        };
+        }
 
         let mut child = self.spawn()?;
         let mut child2 = None;
@@ -291,7 +289,6 @@ impl CommandOutput for Command {
                                 match sock.read(&mut buff) {
                                     Ok(0) => break,
                                     Ok(n) => {
-                                        ends_with_nl = buff[n - 1] == b'\n';
                                         if event.token() == token_out {
                                             if let Some(ref mut out) = output {
                                                 out.write_all(&buff[..n])?;
@@ -301,6 +298,7 @@ impl CommandOutput for Command {
                                             logfile.write_all(&buff[..n])?
                                         }
                                         if event.token() != token_out || !ignore_stdout {
+                                            ends_with_nl = buff[n - 1] == b'\n';
                                             match how_output {
                                                 callback::CommandOutput::Inherit => {
                                                     stdout().write_all(&buff[..n])?
@@ -494,7 +492,7 @@ impl Makepkg {
             .process_function(
                 self,
                 CommandKind::PkgbuildFunction(pkgbuild),
-                Some(PKGBUILD_SCRIPT.as_bytes()),
+                PKGBUILD_SCRIPT.as_bytes(),
                 command_output,
                 logfile.as_mut(),
             )

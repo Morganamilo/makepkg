@@ -323,6 +323,8 @@ impl Makepkg {
             writeln!(output, ")").unwrap();
         }
 
+        let _ = output.pop();
+
         Ok(output)
     }
 
