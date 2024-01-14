@@ -74,9 +74,7 @@ impl Makepkg {
             .arg(fragval)
             .current_dir(path)
             .process_output()
-            .map_err(|_| IntegError::SignatureNotFound(source.clone()))?;
-
-        let object = object.stdout.read(&command, Context::IntegrityCheck)?;
+            .read(&command, Context::IntegrityCheck)?;
 
         if !object.contains("-----BEGIN PGP SIGNATURE-----") {
             self.event(Event::SignatureCheckFailed(SigFailed::new(

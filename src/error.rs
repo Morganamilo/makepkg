@@ -40,13 +40,6 @@ impl CommandOutputExt for StdResult<Output, io::Error> {
     }
 }
 
-impl CommandOutputExt for Vec<u8> {
-    fn read(self, command: &Command, context: Context) -> StdResult<String, CommandError> {
-        let output = String::from_utf8(self).cmd_context(command, context.clone())?;
-        Ok(output.trim().to_string())
-    }
-}
-
 pub(crate) trait CommandErrorExt<T>: Sized {
     fn cmd_context(self, command: &Command, context: Context) -> StdResult<T, CommandError>;
     fn download_context(

@@ -809,17 +809,17 @@ mod test {
 
         fn command_new(&mut self, id: usize, kind: CommandKind) -> crate::callback::CommandOutput {
             print!(" | on new: -> {} <- | {:?}\n", id, kind.pkgbuild().pkgbase);
-            //CommandOutput::Callback
+            CommandOutput::Callback
             //CommandOutput::Null
             //CommandOutput::Inherit
-            CommandOutput::File(
+            /*CommandOutput::File(
                 File::options()
                     .create(true)
                     .write(true)
                     .append(true)
                     .open("awaw")
                     .unwrap(),
-            )
+            )// */
         }
         fn command_output(&mut self, id: usize, _kind: CommandKind, output: &[u8]) {
             let mut stdout = stdout().lock();
