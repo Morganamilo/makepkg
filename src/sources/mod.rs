@@ -30,7 +30,7 @@ impl Makepkg {
         pkgbuild: &Pkgbuild,
         all: bool,
     ) -> Result<()> {
-        self.event(Event::RetrievingSources);
+        self.event(Event::RetrievingSources)?;
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
 
         mkdir(&dirs.srcdest, Context::RetrieveSources)?;
@@ -46,7 +46,7 @@ impl Makepkg {
     }
 
     pub fn extract_sources(&self, options: &Options, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
-        self.event(Event::ExtractingSources);
+        self.event(Event::ExtractingSources)?;
 
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
 
@@ -76,7 +76,7 @@ impl Makepkg {
             }
         }
 
-        self.event(Event::SourcesAreReady);
+        self.event(Event::SourcesAreReady)?;
 
         Ok(())
     }
@@ -114,7 +114,7 @@ impl Makepkg {
             if let Some(tool) = source.vcs_kind() {
                 vcs_downloads.entry(tool).or_default().push(source);
             } else if path.exists() {
-                self.event(Event::FoundSource(source.file_name().to_string()));
+                self.event(Event::FoundSource(source.file_name().to_string()))?;
                 continue;
             } else if !source.is_remote() {
                 return Err(DownloadError::SourceMissing(source.clone()).into());

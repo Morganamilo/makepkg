@@ -1,25 +1,36 @@
 use std::{
     fmt::Display,
     fs::File,
-    io::{stdout, Write},
+    io::{self, stdout, Write},
 };
 
 use crate::{
+    error::{Context, IOContext, IOErrorExt, Result},
     pkgbuild::{Pkgbuild, Source},
     sources::VCSKind,
     Makepkg,
 };
 
 pub trait Callbacks: std::fmt::Debug + 'static {
-    fn event(&mut self, _event: Event) {}
-    fn progress(&mut self, _source: Source, _dltotal: f64, _dlnow: f64) {}
-    fn log(&mut self, _level: LogLevel, _msg: LogMessage) {}
-
-    fn command_new(&mut self, _id: usize, _kind: CommandKind) -> CommandOutput {
-        Default::default()
+    fn event(&mut self, _event: Event) -> io::Result<()> {
+        Ok(())
     }
-    fn command_exit(&mut self, _id: usize, _kind: CommandKind) {}
-    fn command_output(&mut self, _id: usize, _kind: CommandKind, _output: &[u8]) {}
+    fn progress(&mut self, _source: Source, _dltotal: f64, _dlnow: f64) -> io::Result<()> {
+        Ok(())
+    }
+    fn log(&mut self, _level: LogLevel, _msg: LogMessage) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn command_new(&mut self, _id: usize, _kind: CommandKind) -> io::Result<CommandOutput> {
+        Ok(Default::default())
+    }
+    fn command_exit(&mut self, _id: usize, _kind: CommandKind) -> io::Result<()> {
+        Ok(())
+    }
+    fn command_output(&mut self, _id: usize, _kind: CommandKind, _output: &[u8]) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default)]
@@ -56,7 +67,7 @@ impl<'a> CommandKind<'a> {
 pub struct CallBackPrinter;
 
 impl Callbacks for CallBackPrinter {
-    fn event(&mut self, event: Event) {
+    fn event(&mut self, event: Event) -> io::Result<()> {
         match event {
             Event::FoundSource(_)
             | Event::Downloading(_)
@@ -68,22 +79,22 @@ impl Callbacks for CallBackPrinter {
             | Event::AddingFileToPackage(_)
             | Event::GeneratingPackageFile(_)
             | Event::DownloadingVCS(_, _)
-            | Event::UpdatingVCS(_, _) => println!("    {}", event),
+            | Event::UpdatingVCS(_, _) => writeln!(stdout(), "    {}", event),
             Event::VerifyingChecksum(_) | Event::VerifyingSignature(_) => {
-                print!("    {} ...", event);
-                let _ = stdout().flush();
+                write!(stdout(), "    {} ...", event)?;
+                stdout().flush()
             }
             Event::ChecksumSkipped(_)
             | Event::ChecksumFailed(_, _)
             | Event::ChecksumPass(_)
             | Event::SignatureCheckFailed(_)
-            | Event::SignatureCheckPass(_) => println!(" {}", event),
-            _ => println!(":: {}", event),
+            | Event::SignatureCheckPass(_) => writeln!(stdout(), " {}", event),
+            _ => writeln!(stdout(), ":: {}", event),
         }
     }
 
-    fn log(&mut self, level: LogLevel, msg: LogMessage) {
-        println!("{}: {}", level, msg);
+    fn log(&mut self, level: LogLevel, msg: LogMessage) -> io::Result<()> {
+        writeln!(stdout(), "{}: {}", level, msg)
     }
 }
 
@@ -274,21 +285,27 @@ impl Display for LogMessage {
 }
 
 impl Makepkg {
-    pub fn event(&self, event: Event) {
+    pub fn event(&self, event: Event) -> Result<()> {
         if let Some(cb) = &mut *self.callbacks.borrow_mut() {
             cb.event(event)
+                .context(Context::Callback, IOContext::WriteBuffer)?;
         }
+        Ok(())
     }
 
-    pub fn log(&self, level: LogLevel, msg: LogMessage) {
+    pub fn log(&self, level: LogLevel, msg: LogMessage) -> Result<()> {
         if let Some(cb) = &mut *self.callbacks.borrow_mut() {
             cb.log(level, msg)
+                .context(Context::Callback, IOContext::WriteBuffer)?;
         }
+        Ok(())
     }
 
-    pub fn progress(&self, source: Source, dltotal: f64, dlnow: f64) {
+    pub fn progress(&self, source: Source, dltotal: f64, dlnow: f64) -> Result<()> {
         if let Some(cb) = &mut *self.callbacks.borrow_mut() {
             cb.progress(source, dltotal, dlnow)
+                .context(Context::Callback, IOContext::WriteBuffer)?;
         }
+        Ok(())
     }
 }

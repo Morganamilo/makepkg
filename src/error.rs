@@ -229,6 +229,7 @@ impl ParseError {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Context {
+    Callback,
     IntegrityCheck,
     RetrieveSources,
     ExtractSources,
@@ -255,6 +256,7 @@ pub enum Context {
 impl Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Context::Callback => f.write_str("failed to run callback"),
             Context::IntegrityCheck => f.write_str("failed to validate sources"),
             Context::RetrieveSources => f.write_str("failed to download sources"),
             Context::ExtractSources => f.write_str("failed to extract sources"),

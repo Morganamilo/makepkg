@@ -25,7 +25,7 @@ impl Makepkg {
         }
 
         if !repopath.exists() {
-            self.event(Event::DownloadingVCS(VCSKind::Mercurial, source.clone()));
+            self.event(Event::DownloadingVCS(VCSKind::Mercurial, source.clone()))?;
 
             let mut command = Command::new("hg");
             command
@@ -37,7 +37,7 @@ impl Makepkg {
                 .process_spawn(self, CommandKind::DownloadSources(pkgbuild, source))
                 .download_context(source, &command, Context::None)?;
         } else if !options.hold_ver {
-            self.event(Event::UpdatingVCS(VCSKind::Mercurial, source.clone()));
+            self.event(Event::UpdatingVCS(VCSKind::Mercurial, source.clone()))?;
 
             let mut command = Command::new("hg");
             command
@@ -56,7 +56,7 @@ impl Makepkg {
         pkgbuild: &Pkgbuild,
         source: &Source,
     ) -> Result<()> {
-        self.event(Event::ExtractingVCS(VCSKind::Mercurial, source.clone()));
+        self.event(Event::ExtractingVCS(VCSKind::Mercurial, source.clone()))?;
 
         let srcpath = dirs.srcdir.join(source.file_name());
         let repopath = dirs.download_path(source);

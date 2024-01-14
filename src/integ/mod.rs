@@ -27,7 +27,7 @@ mod vcs;
 impl Makepkg {
     pub fn check_integ(&self, options: &Options, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
         if options.skip_pgp_check && options.skip_checksums {
-            self.log(LogLevel::Warning, LogMessage::SkippingAllIntegrityChecks);
+            self.log(LogLevel::Warning, LogMessage::SkippingAllIntegrityChecks)?;
             return Ok(());
         }
 
@@ -37,10 +37,10 @@ impl Makepkg {
             self.log(
                 LogLevel::Warning,
                 LogMessage::SkippingChecksumIntegrityChecks,
-            );
+            )?;
             self.check_signatures(pkgbuild, all)?
         } else if options.skip_pgp_check {
-            self.log(LogLevel::Warning, LogMessage::SkippingPGPIntegrityChecks);
+            self.log(LogLevel::Warning, LogMessage::SkippingPGPIntegrityChecks)?;
             self.check_checksums(&dirs, pkgbuild, all)?;
         } else {
             self.check_checksums(&dirs, pkgbuild, all)?;
@@ -62,7 +62,7 @@ impl Makepkg {
     }
 
     pub fn check_signatures(&self, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
-        self.event(Event::VerifyingSignatures);
+        self.event(Event::VerifyingSignatures)?;
         let mut gpg =
             gpgme::Context::from_protocol(Protocol::OpenPgp).map_err(IntegError::Gpgme)?;
         let mut ok = true;
@@ -134,7 +134,7 @@ impl Makepkg {
         let mut ok = true;
 
         let file = source.file_name();
-        self.event(Event::VerifyingSignature(file.to_string()));
+        self.event(Event::VerifyingSignature(file.to_string()))?;
 
         for sig in res.signatures() {
             let fingerprint = sig
@@ -146,14 +146,14 @@ impl Makepkg {
                 if sig.summary().contains(SignatureSummary::KEY_MISSING) {
                     self.event(
                         SigFailed::new(file, fingerprint, SigFailedKind::UnknownPublicKey).into(),
-                    );
+                    )?;
                 } else if sig.summary().contains(SignatureSummary::KEY_REVOKED) {
-                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Revoked).into());
+                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Revoked).into())?;
                 } else if sig.summary().contains(SignatureSummary::KEY_REVOKED) {
-                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Expired).into());
+                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Expired).into())?;
                 } else {
                     let d = err.to_string();
-                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Other(d)).into());
+                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::Other(d)).into())?;
                 }
                 continue;
             }
@@ -163,16 +163,18 @@ impl Makepkg {
                     sig.validity(),
                     Validity::Full | Validity::Marginal | Validity::Ultimate
                 ) {
-                    self.event(SigFailed::new(file, fingerprint, SigFailedKind::NotTrusted).into());
+                    self.event(
+                        SigFailed::new(file, fingerprint, SigFailedKind::NotTrusted).into(),
+                    )?;
                     ok = false;
                 }
             } else if !pkgbuild.validpgpkeys.iter().any(|p| p == fingerprint) {
                 self.event(
                     SigFailed::new(file, fingerprint, SigFailedKind::NotInValidPgpKeys).into(),
-                );
+                )?;
                 ok = false;
             } else {
-                self.event(Event::SignatureCheckPass(file.to_string()))
+                self.event(Event::SignatureCheckPass(file.to_string()))?
             }
         }
 
@@ -185,7 +187,7 @@ impl Makepkg {
         pkgbuild: &Pkgbuild,
         all: bool,
     ) -> Result<()> {
-        self.event(Event::VerifyingChecksums);
+        self.event(Event::VerifyingChecksums)?;
 
         let mut ok = true;
 
@@ -228,7 +230,7 @@ impl Makepkg {
         b2: &[String],
     ) -> Result<bool> {
         let mut failed = Vec::new();
-        self.event(Event::VerifyingChecksum(source.file_name().to_string()));
+        self.event(Event::VerifyingChecksum(source.file_name().to_string()))?;
 
         if [
             md5.get(n),
@@ -242,7 +244,7 @@ impl Makepkg {
         .flatten()
         .all(|v| *v == "SKIP")
         {
-            self.event(Event::ChecksumSkipped(source.file_name().to_string()));
+            self.event(Event::ChecksumSkipped(source.file_name().to_string()))?;
             return Ok(true);
         }
 
@@ -257,10 +259,10 @@ impl Makepkg {
             self.event(Event::ChecksumFailed(
                 source.file_name().to_string(),
                 failed.into_iter().map(|s| s.to_string()).collect(),
-            ));
+            ))?;
             Ok(false)
         } else {
-            self.event(Event::ChecksumPass(source.file_name().to_string()));
+            self.event(Event::ChecksumPass(source.file_name().to_string()))?;
             Ok(true)
         }
     }
@@ -296,8 +298,7 @@ impl Makepkg {
         }
 
         self.download_sources(options, p, true)?;
-
-        self.event(Event::GeneratingChecksums);
+        self.event(Event::GeneratingChecksums)?;
 
         for sum in enabled {
             match sum {

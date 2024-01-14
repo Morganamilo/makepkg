@@ -45,8 +45,12 @@ impl<'a> Handler for Handle<'a> {
     }
 
     fn progress(&mut self, dltotal: f64, dlnow: f64, _ultotal: f64, _ulnow: f64) -> bool {
-        self.makepkg.progress(self.source.clone(), dltotal, dlnow);
-        true
+        if let Err(e) = self.makepkg.progress(self.source.clone(), dltotal, dlnow) {
+            self.err = Err(e);
+            false
+        } else {
+            true
+        }
     }
 
     fn seek(&mut self, seek: SeekFrom) -> curl::easy::SeekResult {
@@ -78,7 +82,7 @@ impl Makepkg {
             while running < max_downloads && !sources.is_empty() {
                 if let Some(source) = sources.pop() {
                     let curl = self.make_payload(dirs, source)?;
-                    self.event(Event::Downloading(source.file_name().to_string()));
+                    self.event(Event::Downloading(source.file_name().to_string()))?;
                     let handle = curlm.add2(curl)?;
                     handles.push(handle);
                     running += 1;

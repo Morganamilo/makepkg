@@ -148,7 +148,7 @@ impl CommandOutput for Command {
             let id = *id - 1;
 
             let how_output = if let Some(callbacks) = &mut *callbacks {
-                callbacks.command_new(id, kind)
+                callbacks.command_new(id, kind)?
             } else {
                 Default::default()
             };
@@ -310,7 +310,7 @@ impl CommandOutput for Command {
                                                             data.id,
                                                             kind,
                                                             &buff[..n],
-                                                        );
+                                                        )?;
                                                     }
                                                 }
                                                 callback::CommandOutput::File(ref mut file) => {
@@ -335,7 +335,7 @@ impl CommandOutput for Command {
                                 callback::CommandOutput::Null => (),
                                 callback::CommandOutput::Callback => {
                                     if let Some(callbacks) = &mut *callbacks {
-                                        callbacks.command_output(data.id, kind, &[b'\n']);
+                                        callbacks.command_output(data.id, kind, &[b'\n'])?;
                                     }
                                 }
                                 callback::CommandOutput::File(ref mut file) => {
@@ -349,13 +349,13 @@ impl CommandOutput for Command {
         }
 
         if let Some(callbacks) = &mut *callbacks {
-            callbacks.command_exit(data1.id, kind);
+            callbacks.command_exit(data1.id, kind)?;
         }
 
         if let Some(mut child2) = child2 {
             let status = child2.wait()?;
             if let Some(callbacks) = &mut *callbacks {
-                callbacks.command_exit(data2.id, kind);
+                callbacks.command_exit(data2.id, kind)?;
             }
             if !status.success() {
                 return Ok(status);
@@ -430,7 +430,7 @@ impl Makepkg {
         function: &str,
         capture_output: bool,
     ) -> Result<String> {
-        self.event(Event::RunningFunction(function.to_string()));
+        self.event(Event::RunningFunction(function.to_string()))?;
 
         let workingdir = match function {
             "verify" => dirs.startdir.as_path(),
@@ -511,7 +511,7 @@ impl Makepkg {
             return Ok(fakeroot.key.clone());
         }
 
-        self.event(Event::StartingFakeroot);
+        self.event(Event::StartingFakeroot)?;
 
         if !FAKEROOT_LIBDIRS
             .split(':')

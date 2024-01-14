@@ -17,7 +17,7 @@ impl Makepkg {
         self.event(Event::BuildingPackage(
             pkgbuild.pkgbase.clone(),
             pkgbuild.version(),
-        ));
+        ))?;
 
         let config = &self.config;
 
@@ -37,7 +37,7 @@ impl Makepkg {
 
         if !options.repackage {
             if options.no_extract && !options.verify_source {
-                self.event(Event::UsingExistingSrcdir);
+                self.event(Event::UsingExistingSrcdir)?;
             } else {
                 self.download_sources(options, pkgbuild, false)?;
                 self.check_integ(options, pkgbuild, false)?;
@@ -47,7 +47,7 @@ impl Makepkg {
                 }
 
                 if options.clean_build && dirs.srcdir.exists() {
-                    self.event(Event::RemovingSrcdir);
+                    self.event(Event::RemovingSrcdir)?;
                     rm_all(&dirs.srcdir, Context::BuildPackage)?;
                 }
                 mkdir(&dirs.srcdir, Context::BuildPackage)?;
@@ -63,7 +63,7 @@ impl Makepkg {
         }
 
         if dirs.pkgdir.exists() {
-            self.event(Event::RemovingPkgdir);
+            self.event(Event::RemovingPkgdir)?;
             rm_all(&dirs.pkgdir, Context::BuildPackage)?;
         }
         for pkg in pkgbuild.packages() {
@@ -90,7 +90,7 @@ impl Makepkg {
         self.event(Event::BuiltPackage(
             pkgbuild.pkgbase.clone(),
             pkgbuild.version(),
-        ));
+        ))?;
 
         Ok(())
     }

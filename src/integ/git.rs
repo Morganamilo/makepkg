@@ -81,7 +81,7 @@ impl Makepkg {
                 source.file_name(),
                 "none",
                 SigFailedKind::NotSigned,
-            )));
+            )))?;
             return Ok(false);
         }
 

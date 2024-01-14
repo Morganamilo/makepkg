@@ -21,7 +21,7 @@ impl Makepkg {
         let path = dirs.download_path(source);
 
         if !path.exists() || !path.join("objects").exists() {
-            self.event(Event::DownloadingVCS(VCSKind::Git, source.clone()));
+            self.event(Event::DownloadingVCS(VCSKind::Git, source.clone()))?;
 
             let flags = std::env::var("GITFLAGS");
             let flags = flags
@@ -56,7 +56,7 @@ impl Makepkg {
                 );
             }
 
-            self.event(Event::UpdatingVCS(VCSKind::Git, source.clone()));
+            self.event(Event::UpdatingVCS(VCSKind::Git, source.clone()))?;
 
             let mut command = Command::new("git");
             command
@@ -81,7 +81,7 @@ impl Makepkg {
         let mut gitref = "origin/HEAD".to_string();
         let mut updating = false;
         let srcpath = dirs.srcdir.join(source.file_name());
-        self.event(Event::ExtractingVCS(VCSKind::Git, source.clone()));
+        self.event(Event::ExtractingVCS(VCSKind::Git, source.clone()))?;
 
         if srcpath.exists() {
             updating = true;
