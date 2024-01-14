@@ -308,8 +308,11 @@ impl CommandOutput for Command {
                                                 callback::CommandOutput::Null => (),
                                                 callback::CommandOutput::Callback => {
                                                     if let Some(callbacks) = &mut *callbacks {
-                                                        callbacks
-                                                            .command_output(data.id, &buff[..n]);
+                                                        callbacks.command_output(
+                                                            data.id,
+                                                            kind,
+                                                            &buff[..n],
+                                                        );
                                                     }
                                                 }
                                                 callback::CommandOutput::File(ref mut file) => {
@@ -334,7 +337,7 @@ impl CommandOutput for Command {
                                 callback::CommandOutput::Null => (),
                                 callback::CommandOutput::Callback => {
                                     if let Some(callbacks) = &mut *callbacks {
-                                        callbacks.command_output(data.id, &[b'\n']);
+                                        callbacks.command_output(data.id, kind, &[b'\n']);
                                     }
                                 }
                                 callback::CommandOutput::File(ref mut file) => {
@@ -348,13 +351,13 @@ impl CommandOutput for Command {
         }
 
         if let Some(callbacks) = &mut *callbacks {
-            callbacks.command_exit(data1.id);
+            callbacks.command_exit(data1.id, kind);
         }
 
         if let Some(mut child2) = child2 {
             let status = child2.wait()?;
             if let Some(callbacks) = &mut *callbacks {
-                callbacks.command_exit(data2.id);
+                callbacks.command_exit(data2.id, kind);
             }
             if !status.success() {
                 return Ok(status);

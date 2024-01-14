@@ -18,8 +18,8 @@ pub trait Callbacks: std::fmt::Debug + 'static {
     fn command_new(&mut self, _id: usize, _kind: CommandKind) -> CommandOutput {
         Default::default()
     }
-    fn command_exit(&mut self, _id: usize) {}
-    fn command_output(&mut self, _id: usize, _output: &[u8]) {}
+    fn command_exit(&mut self, _id: usize, _kind: CommandKind) {}
+    fn command_output(&mut self, _id: usize, _kind: CommandKind, _output: &[u8]) {}
 }
 
 #[derive(Debug, Default)]

@@ -821,7 +821,7 @@ mod test {
                     .unwrap(),
             )
         }
-        fn command_output(&mut self, id: usize, output: &[u8]) {
+        fn command_output(&mut self, id: usize, _kind: CommandKind, output: &[u8]) {
             let mut stdout = stdout().lock();
             let output = output.to_ascii_uppercase();
 
