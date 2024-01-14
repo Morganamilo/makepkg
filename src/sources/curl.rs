@@ -17,13 +17,14 @@ use crate::{
     config::PkgbuildDirs,
     error::{Context, DownloadError, IOContext, IOErrorExt, Result},
     fs::{open, rename},
-    pkgbuild::Source,
-    Makepkg,
+    pkgbuild::{Pkgbuild, Source},
+    Download, DownloadEvent, Makepkg,
 };
 
 pub struct Handle<'a> {
     makepkg: &'a Makepkg,
-    source: Source,
+    pkgbuild: &'a Pkgbuild,
+    download: Download<'a>,
     file: File,
     temp_path: PathBuf,
     final_path: PathBuf,
@@ -34,7 +35,7 @@ impl<'a> Handler for Handle<'a> {
     fn write(&mut self, data: &[u8]) -> StdResult<usize, WriteError> {
         let err = self.file.write_all(data).context(
             Context::RetrieveSources,
-            IOContext::WriteDownload(self.source.file_name().to_string()),
+            IOContext::WriteDownload(self.download.source.file_name().to_string()),
         );
         if let Err(err) = err {
             self.err = Err(err.into());
@@ -45,7 +46,8 @@ impl<'a> Handler for Handle<'a> {
     }
 
     fn progress(&mut self, dltotal: f64, dlnow: f64, _ultotal: f64, _ulnow: f64) -> bool {
-        if let Err(e) = self.makepkg.progress(self.source.clone(), dltotal, dlnow) {
+        let event = DownloadEvent::Progress(self.download, dlnow, dltotal);
+        if let Err(e) = self.makepkg.download(self.pkgbuild, event) {
             self.err = Err(e);
             false
         } else {
@@ -71,18 +73,27 @@ impl Makepkg {
     pub(crate) fn download_curl_sources(
         &self,
         dirs: &PkgbuildDirs,
+        pkgbuild: &Pkgbuild,
         mut sources: Vec<&Source>,
     ) -> Result<()> {
         let curlm = Multi::new();
         let max_downloads = 8;
         let mut handles = Vec::new();
         let mut running = 0;
+        let total = sources.len();
+
+        if sources.is_empty() {
+            return Ok(());
+        }
+
+        self.download(pkgbuild, DownloadEvent::DownloadStart(total))?;
 
         while running > 0 || !sources.is_empty() {
             while running < max_downloads && !sources.is_empty() {
                 if let Some(source) = sources.pop() {
-                    let curl = self.make_payload(dirs, source)?;
-                    self.event(Event::Downloading(source.file_name().to_string()))?;
+                    let curl =
+                        self.make_payload(dirs, pkgbuild, source, total - sources.len(), total)?;
+                    self.event(Event::DownloadingCurl(source.file_name().to_string()))?;
                     let handle = curlm.add2(curl)?;
                     handles.push(handle);
                     running += 1;
@@ -92,19 +103,30 @@ impl Makepkg {
             running = curlm.perform()?;
             curlm.wait(&mut [], Duration::from_secs(1))?;
 
-            handle_messages(&curlm, &mut handles);
+            handle_messages(self, &curlm, &mut handles);
 
             if let Some(handler) = handles.iter_mut().find(|h| h.get_ref().err.is_err()) {
                 let err = replace(&mut handler.get_mut().err, Ok(()));
+                drop(curlm);
+                drop(handles);
+                self.download(pkgbuild, DownloadEvent::DownloadEnd)?;
                 return err;
             }
         }
 
         drop(handles);
+        self.download(pkgbuild, DownloadEvent::DownloadEnd)?;
         Ok(())
     }
 
-    fn make_payload(&self, dirs: &PkgbuildDirs, source: &Source) -> Result<Easy2<Handle>> {
+    fn make_payload<'a>(
+        &'a self,
+        dirs: &'a PkgbuildDirs,
+        pkgbuild: &'a Pkgbuild,
+        source: &'a Source,
+        current: usize,
+        total: usize,
+    ) -> Result<Easy2<Handle<'a>>> {
         let name = source.file_name();
         let final_path = dirs.srcdest.join(name);
         let mut temp_path = final_path.clone();
@@ -121,21 +143,28 @@ impl Makepkg {
         let len = file
             .seek(SeekFrom::End(0))
             .context(Context::RetrieveSources, IOContext::Seek(temp_path.clone()))?;
+        let download = Download {
+            n: current,
+            total,
+            source,
+        };
         let mut curl = Easy2::new(Handle {
             makepkg: self,
+            pkgbuild,
+            download,
             file,
             temp_path,
             final_path,
-            source: source.clone(),
             err: Ok(()),
         });
+        self.download(pkgbuild, DownloadEvent::Init(download))?;
         curl_set_ops(&mut curl, source)?;
         curl.resume_from(len)?;
         Ok(curl)
     }
 }
 
-fn handle_messages(curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
+fn handle_messages(makepkg: &Makepkg, curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
     curlm.messages(|m| {
         for handle in handles.iter_mut() {
             if let Some(res) = m.result_for2(handle) {
@@ -147,8 +176,17 @@ fn handle_messages(curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
                     return;
                 }
                 if !(200..300).contains(&response) {
+                    if let Err(err) = makepkg.download(
+                        context.pkgbuild,
+                        DownloadEvent::Failed(context.download, response),
+                    ) {
+                        context.err = Err(err.into());
+                        return;
+                    }
                     context.err =
-                        Err(DownloadError::Status(context.source.clone(), response).into());
+                        Err(
+                            DownloadError::Status(context.download.source.clone(), response).into(),
+                        );
                     return;
                 }
 
@@ -158,6 +196,13 @@ fn handle_messages(curlm: &Multi, handles: &mut [Easy2Handle<Handle>]) {
                     Context::RetrieveSources,
                 ) {
                     context.err = Err(err);
+                    return;
+                }
+
+                if let Err(err) =
+                    makepkg.download(context.pkgbuild, DownloadEvent::Completed(context.download))
+                {
+                    context.err = Err(err.into());
                     return;
                 }
             };

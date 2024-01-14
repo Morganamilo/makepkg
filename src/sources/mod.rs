@@ -38,7 +38,7 @@ impl Makepkg {
         let (downloads, vcs_downloads, curl_downloads) =
             self.get_downloads(pkgbuild, &dirs, all)?;
 
-        self.download_curl_sources(&dirs, curl_downloads)?;
+        self.download_curl_sources(&dirs, pkgbuild, curl_downloads)?;
         self.download_file(&dirs, pkgbuild, &downloads)?;
         self.download_vcs(&dirs, options, pkgbuild, &vcs_downloads)?;
 

@@ -15,9 +15,6 @@ pub trait Callbacks: std::fmt::Debug + 'static {
     fn event(&mut self, _event: Event) -> io::Result<()> {
         Ok(())
     }
-    fn progress(&mut self, _source: Source, _dltotal: f64, _dlnow: f64) -> io::Result<()> {
-        Ok(())
-    }
     fn log(&mut self, _level: LogLevel, _msg: LogMessage) -> io::Result<()> {
         Ok(())
     }
@@ -31,6 +28,27 @@ pub trait Callbacks: std::fmt::Debug + 'static {
     fn command_output(&mut self, _id: usize, _kind: CommandKind, _output: &[u8]) -> io::Result<()> {
         Ok(())
     }
+
+    fn download(&mut self, _pkgbuild: &Pkgbuild, _event: DownloadEvent) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Download<'a> {
+    pub n: usize,
+    pub total: usize,
+    pub source: &'a Source,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+pub enum DownloadEvent<'a> {
+    DownloadStart(usize),
+    Init(Download<'a>),
+    Progress(Download<'a>, f64, f64),
+    Completed(Download<'a>),
+    Failed(Download<'a>, u32),
+    DownloadEnd,
 }
 
 #[derive(Debug, Default)]
@@ -301,9 +319,9 @@ impl Makepkg {
         Ok(())
     }
 
-    pub fn progress(&self, source: Source, dltotal: f64, dlnow: f64) -> Result<()> {
+    pub fn download(&self, pkgbuild: &Pkgbuild, event: DownloadEvent) -> Result<()> {
         if let Some(cb) = &mut *self.callbacks.borrow_mut() {
-            cb.progress(source, dltotal, dlnow)
+            cb.download(pkgbuild, event)
                 .context(Context::Callback, IOContext::WriteBuffer)?;
         }
         Ok(())

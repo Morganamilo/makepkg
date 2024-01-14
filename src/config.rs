@@ -312,7 +312,7 @@ impl Config {
         Config::load(None)
     }
 
-    pub fn with_path<P: Into<PathBuf>>(path: P) -> Result<Self> {
+    pub fn from_path<P: Into<PathBuf>>(path: P) -> Result<Self> {
         Config::load(Some(path.into()))
     }
 
