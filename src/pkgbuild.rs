@@ -857,7 +857,7 @@ mod test {
         let config = Makepkg::new().unwrap().callbacks(PrettyPrinter);
         let mut options = Options::new();
         options.clean_build = true;
-        options.recreate_package = true;
+        options.rebuild = true;
         options.ignore_arch = true;
         let pkgbuild = Pkgbuild::new("../makepkg-test").unwrap();
         let res = config.geninteg(&options, &pkgbuild).unwrap();
@@ -877,7 +877,7 @@ mod test {
         //println!("{:#?}", makepkg.config());
         let mut options = Options::new();
         options.clean_build = true;
-        options.recreate_package = true;
+        options.rebuild = true;
         options.ignore_arch = true;
         options.log = true;
         //options.no_build = true;

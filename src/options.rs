@@ -15,10 +15,9 @@ pub struct Options {
     pub verify_source: bool,
     pub repackage: bool,
     pub no_build: bool,
-    pub recreate_package: bool,
+    pub rebuild: bool,
     pub no_archive: bool,
     pub hold_ver: bool,
-    pub all_source: bool,
 }
 
 impl Options {

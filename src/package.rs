@@ -476,7 +476,7 @@ impl Makepkg {
             pkgbuild.version(),
         ));
 
-        if !options.recreate_package {
+        if !options.rebuild {
             self.err_if_srcpkg_built(options, pkgbuild)?;
         }
 
