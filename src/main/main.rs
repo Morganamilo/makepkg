@@ -23,7 +23,11 @@ pub fn print_error(style: Style, err: Error) {
     eprint!("{}", style.paint("error"));
 
     for link in err.chain() {
+        let merr = err.downcast_ref::<makepkg::error::Error>();
         eprint!(": {}", link);
+        if let Some(makepkg::error::Error::AlreadyBuilt(_)) = merr {
+            eprint!(" (use -f to overwrite)");
+        }
     }
     eprintln!();
 }
@@ -75,8 +79,8 @@ fn run() -> Result<()> {
         log: cli.log,
         check,
         sign,
-        skip_pgp_check: cli.skippgpcheck,
-        skip_checksums: cli.skipchecksums,
+        skip_pgp_check: cli.skippgpcheck || cli.skipinteg,
+        skip_checksums: cli.skipchecksums || cli.skipinteg,
         no_prepare: cli.noprepare,
         reproducible: std::env::var("SOURCE_DATE_EPOCH").is_ok(),
         ignore_arch: cli.ignorearch,
