@@ -185,7 +185,7 @@ impl Printer {
     fn progress_bar() -> ProgressBar {
         let template = " {msg}";
 
-        let style = ProgressStyle::with_template(&template).unwrap();
+        let style = ProgressStyle::with_template(template).unwrap();
 
         ProgressBar::hidden()
             .with_style(style)

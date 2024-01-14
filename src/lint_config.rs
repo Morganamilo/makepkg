@@ -37,7 +37,7 @@ impl Config {
         warnings
     }
 
-    pub(crate) fn lint(&self, _lints: &mut Vec<LintKind>) {
+    pub(crate) fn lint(&self, _lints: &mut [LintKind]) {
         //
     }
 }

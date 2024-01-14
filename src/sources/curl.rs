@@ -180,7 +180,7 @@ fn handle_messages(makepkg: &Makepkg, curlm: &Multi, handles: &mut [Easy2Handle<
                         context.pkgbuild,
                         DownloadEvent::Failed(context.download, response),
                     ) {
-                        context.err = Err(err.into());
+                        context.err = Err(err);
                         return;
                     }
                     context.err =
@@ -202,7 +202,7 @@ fn handle_messages(makepkg: &Makepkg, curlm: &Multi, handles: &mut [Easy2Handle<
                 if let Err(err) =
                     makepkg.download(context.pkgbuild, DownloadEvent::Completed(context.download))
                 {
-                    context.err = Err(err.into());
+                    context.err = Err(err);
                     return;
                 }
             };

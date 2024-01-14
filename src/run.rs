@@ -249,7 +249,7 @@ impl CommandOutput for Command {
                     if let Some(sock) = &mut insock {
                         if event.is_writable() && !input.is_empty() {
                             loop {
-                                match sock.write(&mut input) {
+                                match sock.write(input) {
                                     Ok(0) => break,
                                     Ok(n) => {
                                         input = &input[n..];
@@ -265,7 +265,7 @@ impl CommandOutput for Command {
                             }
                         }
                         if event.is_write_closed() {
-                            open = open & !event.token().0;
+                            open &= !event.token().0;
                         }
                     }
                 } else {
@@ -327,7 +327,7 @@ impl CommandOutput for Command {
                         }
                     }
                     if event.is_read_closed() {
-                        open = open & !event.token().0;
+                        open &= !event.token().0;
 
                         if !ends_with_nl && event.token() == token_err {
                             match how_output {
