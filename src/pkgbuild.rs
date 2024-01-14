@@ -746,14 +746,14 @@ mod test {
     use ansi_term::{Color, Style};
     use std::{
         fs::File,
-        io::{stdout, Write},
+        io::{self, stdout, Write},
     };
 
     #[derive(Debug)]
     pub struct PrettyPrinter;
 
     impl Callbacks for PrettyPrinter {
-        fn event(&mut self, event: Event) {
+        fn event(&mut self, event: Event) -> io::Result<()> {
             match event {
                 Event::FoundSource(_)
                 | Event::Downloading(_)
@@ -784,9 +784,10 @@ mod test {
                     );
                 }
             }
+            Ok(())
         }
 
-        fn log(&mut self, level: LogLevel, msg: LogMessage) {
+        fn log(&mut self, level: LogLevel, msg: LogMessage) -> io::Result<()> {
             match level {
                 LogLevel::Error => println!(
                     "{}: {}",
@@ -803,11 +804,16 @@ mod test {
                 ),
                 _ => (),
             }
+            Ok(())
         }
 
-        fn command_new(&mut self, id: usize, kind: CommandKind) -> crate::callback::CommandOutput {
+        fn command_new(
+            &mut self,
+            id: usize,
+            kind: CommandKind,
+        ) -> io::Result<crate::callback::CommandOutput> {
             print!(" | on new: -> {} <- | {:?}\n", id, kind.pkgbuild().pkgbase);
-            CommandOutput::Callback
+            Ok(CommandOutput::Callback)
             //CommandOutput::Null
             //CommandOutput::Inherit
             /*CommandOutput::File(
@@ -819,7 +825,12 @@ mod test {
                     .unwrap(),
             )// */
         }
-        fn command_output(&mut self, id: usize, _kind: CommandKind, output: &[u8]) {
+        fn command_output(
+            &mut self,
+            id: usize,
+            _kind: CommandKind,
+            output: &[u8],
+        ) -> io::Result<()> {
             let mut stdout = stdout().lock();
             let output = output.to_ascii_uppercase();
 
@@ -846,6 +857,7 @@ mod test {
             print!(" -> {} <- ", id);
             stdout.write_all(&output).unwrap();
             //println!("{}", output.len());
+            Ok(())
         }
     }
 
