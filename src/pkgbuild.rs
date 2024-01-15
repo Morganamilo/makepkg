@@ -7,12 +7,18 @@ use std::{
     str::FromStr,
 };
 
+use blake2::Blake2b512;
+use md5::Md5;
+use sha1::Sha1;
+use sha2::{Sha224, Sha256, Sha384, Sha512};
+
 use crate::{
-    config::Config,
+    config::{Config, PkgbuildDirs},
     error::{Context, Error, IOContext, IOErrorExt, LintError, LintKind, Result},
     fs::{resolve_path, Check},
     lint_pkgbuild::check_pkgver,
     raw::{FunctionVariables, RawPkgbuild, Value, Variable},
+    Makepkg,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -53,6 +59,92 @@ impl Function {
             Function::Build => "build",
             Function::Check => "check",
             Function::Package => "package",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ChecksumKind {
+    Md5,
+    Sha1,
+    Sha224,
+    Sha256,
+    Sha384,
+    Sha512,
+    Blake2,
+}
+
+impl FromStr for ChecksumKind {
+    type Err = LintKind;
+
+    fn from_str(s: &str) -> StdResult<Self, Self::Err> {
+        Self::kinds()
+            .into_iter()
+            .find(|k| k.name().trim_end_matches("sums") == s)
+            .ok_or_else(|| LintKind::InvalidIntegrityCheck(s.to_string()))
+    }
+}
+
+impl Display for ChecksumKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl ChecksumKind {
+    pub const fn len() -> usize {
+        Self::kinds().len()
+    }
+
+    const fn kinds() -> [Self; 7] {
+        use ChecksumKind::*;
+        [Md5, Sha1, Sha224, Sha256, Sha384, Sha512, Blake2]
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            ChecksumKind::Md5 => "md5sums",
+            ChecksumKind::Sha1 => "sha1sums",
+            ChecksumKind::Sha224 => "sha224sums",
+            ChecksumKind::Sha256 => "sha256sums",
+            ChecksumKind::Sha384 => "sha384sums",
+            ChecksumKind::Sha512 => "sha512sums",
+            ChecksumKind::Blake2 => "b2sums",
+        }
+    }
+
+    pub fn verity_file_checksum(
+        self,
+        makepkg: &Makepkg,
+        dirs: &PkgbuildDirs,
+        s: &Source,
+        p: &Pkgbuild,
+        sums: &str,
+        failed: &mut Vec<&'static str>,
+    ) -> Result<()> {
+        let name = self.name();
+        match self {
+            ChecksumKind::Md5 => {
+                makepkg.verify_file_checksum::<Md5>(dirs, p, s, sums, &name, failed)
+            }
+            ChecksumKind::Sha1 => {
+                makepkg.verify_file_checksum::<Sha1>(dirs, p, s, sums, &name, failed)
+            }
+            ChecksumKind::Sha224 => {
+                makepkg.verify_file_checksum::<Sha224>(dirs, p, s, sums, &name, failed)
+            }
+            ChecksumKind::Sha256 => {
+                makepkg.verify_file_checksum::<Sha256>(dirs, p, s, sums, &name, failed)
+            }
+            ChecksumKind::Sha384 => {
+                makepkg.verify_file_checksum::<Sha384>(dirs, p, s, sums, &name, failed)
+            }
+            ChecksumKind::Sha512 => {
+                makepkg.verify_file_checksum::<Sha512>(dirs, p, s, sums, &name, failed)
+            }
+            ChecksumKind::Blake2 => {
+                makepkg.verify_file_checksum::<Blake2b512>(dirs, p, s, sums, &name, failed)
+            }
         }
     }
 }
@@ -553,6 +645,22 @@ impl Pkgbuild {
         Ok(pkgbuild)
     }
 
+    pub fn get_checksums(&self, kind: ChecksumKind) -> &ArchVecs<String> {
+        match kind {
+            ChecksumKind::Md5 => &self.md5sums,
+            ChecksumKind::Sha1 => &self.sha1sums,
+            ChecksumKind::Sha224 => &self.sha224sums,
+            ChecksumKind::Sha256 => &self.sha256sums,
+            ChecksumKind::Sha384 => &self.sha384sums,
+            ChecksumKind::Sha512 => &self.sha512sums,
+            ChecksumKind::Blake2 => &self.b2sums,
+        }
+    }
+
+    pub fn get_all_checksums(&self) -> [(ChecksumKind, &ArchVecs<String>); ChecksumKind::len()] {
+        ChecksumKind::kinds().map(|k| (k, self.get_checksums(k)))
+    }
+
     fn process_global_var(
         &mut self,
         var: Variable,
@@ -743,7 +851,7 @@ mod test {
         callback::{Callbacks, CommandOutput, Event, LogLevel, LogMessage},
         CommandKind, Makepkg, Options,
     };
-    use ansi_term::{Color, Style};
+    use ansi_term::Style;
     use std::{
         fs::File,
         io::{self, stdout, Write},

@@ -13,7 +13,7 @@ use crate::{
     error::{Context, DownloadAgentError, LintError, LintKind, Result, VCSClientError},
     fs::{resolve_path, resolve_path_relative, Check},
     installation_variables::{MAKEPKG_CONFIG_PATH, PREFIX},
-    pkgbuild::{OptionState, Options, Package, Pkgbuild, Source},
+    pkgbuild::{ChecksumKind, OptionState, Options, Package, Pkgbuild, Source},
     raw::RawConfig,
     sources::VCSKind,
 };
@@ -263,7 +263,7 @@ pub struct Config {
     pub options: Options,
 
     pub gpgkey: Option<String>,
-    pub integrity_check: Vec<String>,
+    pub integrity_check: Vec<ChecksumKind>,
     pub strip_binaries: String,
     pub strip_shared: String,
     pub strip_static: String,
@@ -610,7 +610,14 @@ impl Config {
                 "OPTIONS" => {
                     self.options = var.lint_array(lints).iter().map(|s| s.as_str()).collect()
                 }
-                "INTEGRITY_CHECK" => self.integrity_check = var.lint_array(lints),
+                "INTEGRITY_CHECK" => {
+                    for kind in var.lint_array(lints) {
+                        match kind.parse() {
+                            Ok(o) => self.integrity_check.push(o),
+                            Err(e) => lints.push(e),
+                        }
+                    }
+                }
                 "STRIP_BINARIES" => self.strip_binaries = var.lint_string(lints),
                 "STRIP_SHARED" => self.strip_shared = var.lint_string(lints),
                 "STRIP_STATIC" => self.strip_static = var.lint_string(lints),

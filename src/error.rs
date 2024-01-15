@@ -442,6 +442,7 @@ pub enum LintKind {
     InvalidVCSClient(VCSClientError),
     InvalidDownloadAgent(DownloadAgentError),
     InvalidSystemTime(SystemTimeError),
+    InvalidIntegrityCheck(String),
 }
 
 impl Display for LintKind {
@@ -484,6 +485,7 @@ impl Display for LintKind {
             LintKind::InvalidVCSClient(e) => e.fmt(f),
             LintKind::InvalidDownloadAgent(e) => e.fmt(f),
             LintKind::InvalidSystemTime(_) => f.write_str("invalid system time"),
+            LintKind::InvalidIntegrityCheck(kind) => write!(f, "invalid integrity check {}", kind),
         }
     }
 }
