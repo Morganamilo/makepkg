@@ -29,6 +29,8 @@ pub struct Args {
     pub skippgpcheck: bool,
     #[clap(long, overrides_with = "check")]
     pub nocheck: bool,
+    #[clap(long)]
+    pub noverify: bool,
     #[clap(long, overrides_with = "nocheck")]
     pub check: bool,
     #[arg(long)]

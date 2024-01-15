@@ -13,10 +13,7 @@ use ansi_term::{Color, Style};
 use anyhow::{bail, Context, Error, Result};
 use clap::Parser;
 use makepkg::{config::Config, Makepkg};
-use makepkg::{
-    pkgbuild::{OptionState, Pkgbuild},
-    Options,
-};
+use makepkg::{pkgbuild::Pkgbuild, Options};
 use nix::unistd::Uid;
 
 pub fn print_error(style: Style, err: Error) {
@@ -63,36 +60,36 @@ fn run() -> Result<()> {
     let makepkg = Makepkg::from_config(config).callbacks(Printer::new(color));
     let mut pkgbuild = Pkgbuild::new(".")?;
 
-    let check = match (cli.check, cli.nocheck) {
-        (true, _) => OptionState::Enabled,
-        (_, true) => OptionState::Disabled,
-        (_, _) => OptionState::Unset,
-    };
-
-    let sign = match (cli.sign, cli.sign) {
-        (true, _) => OptionState::Enabled,
-        (_, true) => OptionState::Disabled,
-        (_, _) => OptionState::Unset,
-    };
-
-    let options = Options {
+    let mut options = Options {
+        no_deps: cli.nodeps,
+        sync_deps: cli.syncdeps,
+        install: cli.install,
         log: cli.log,
-        check,
-        sign,
-        skip_pgp_check: cli.skippgpcheck || cli.skipinteg,
-        skip_checksums: cli.skipchecksums || cli.skipinteg,
-        no_prepare: cli.noprepare,
-        reproducible: std::env::var("SOURCE_DATE_EPOCH").is_ok(),
-        ignore_arch: cli.ignorearch,
+        clean: false,
         clean_build: cli.cleanbuild,
-        no_extract: cli.noextract,
-        verify_source: cli.verifysource,
-        repackage: cli.repackage,
-        no_build: cli.nobuild,
-        rebuild: cli.force,
-        no_archive: cli.noarchive,
+        ignore_arch: cli.ignorearch,
         hold_ver: cli.holdver,
+        no_download: false,
+        no_checksums: cli.skipchecksums || cli.skipinteg,
+        no_signatures: cli.skippgpcheck || cli.skipinteg,
+        no_verify: cli.noverify,
+        no_extract: cli.noextract,
+        no_prepare: cli.noprepare,
+        no_build: cli.nobuild,
+        keep_pkg: false,
+        no_check: cli.nocheck,
+        no_package: false,
+        no_archive: cli.noarchive,
+        rebuild: cli.force,
     };
+
+    if cli.repackage {
+        options.repackage();
+    } else if cli.verifysource {
+        options.verify_source();
+    } else if cli.nobuild {
+        options.no_build();
+    }
 
     if cli.geninteg {
         let integ = makepkg.geninteg(&options, &pkgbuild)?;

@@ -35,34 +35,29 @@ impl Makepkg {
 
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
 
-        if !options.repackage {
-            if options.no_extract && !options.verify_source {
-                self.event(Event::UsingExistingSrcdir)?;
-            } else {
-                self.download_sources(options, pkgbuild, false)?;
-                self.check_integ(options, pkgbuild, false)?;
-
-                if options.verify_source {
-                    return Ok(());
-                }
-
-                if options.clean_build && dirs.srcdir.exists() {
-                    self.event(Event::RemovingSrcdir)?;
-                    rm_all(&dirs.srcdir, Context::BuildPackage)?;
-                }
-                mkdir(&dirs.srcdir, Context::BuildPackage)?;
-
-                self.extract_sources(options, pkgbuild, false)?;
-                self.update_pkgver(options, pkgbuild)?;
-                self.err_if_built(options, pkgbuild)?;
-            }
+        if options.no_extract {
+            self.event(Event::UsingExistingSrcdir)?;
         }
 
-        if options.no_build {
-            return Ok(());
+        if !options.no_download {
+            self.download_sources(options, pkgbuild, false)?;
+            self.check_integ(options, pkgbuild, false)?;
         }
 
-        if dirs.pkgdir.exists() {
+        if options.clean_build && dirs.srcdir.exists() {
+            self.event(Event::RemovingSrcdir)?;
+            rm_all(&dirs.srcdir, Context::BuildPackage)?;
+        }
+        mkdir(&dirs.srcdir, Context::BuildPackage)?;
+
+        if !options.no_extract {
+            self.extract_sources(options, pkgbuild, false)?;
+        }
+
+        self.update_pkgver(options, pkgbuild)?;
+        self.err_if_built(options, pkgbuild)?;
+
+        if dirs.pkgdir.exists() && !options.keep_pkg {
             self.event(Event::RemovingPkgdir)?;
             rm_all(&dirs.pkgdir, Context::BuildPackage)?;
         }
@@ -70,24 +65,25 @@ impl Makepkg {
             mkdir(&dirs.pkgdir(pkg), Context::BuildPackage)?;
         }
 
-        if !options.repackage {
+        if !options.no_build {
             self.run_function(options, pkgbuild, Function::Build)?;
             if config.option(pkgbuild, "check").enabled()
-                || (config.build_option(pkgbuild, "check").enabled() && !options.check.disabled())
+                || (config.build_option(pkgbuild, "check").enabled() && !options.no_check)
             {
                 self.run_function(options, pkgbuild, Function::Check)?;
             }
         }
 
-        self.run_function(options, pkgbuild, Function::Package)?;
+        if !options.no_package {
+            self.run_function(options, pkgbuild, Function::Package)?;
+        }
 
         if !options.no_archive {
             for pkg in pkgbuild.packages() {
                 self.create_package(&dirs, options, pkgbuild, pkg, false)?;
             }
+            self.event(Event::BuiltPackage(&pkgbuild.pkgbase, &pkgbuild.version()))?;
         }
-
-        self.event(Event::BuiltPackage(&pkgbuild.pkgbase, &pkgbuild.version()))?;
 
         Ok(())
     }

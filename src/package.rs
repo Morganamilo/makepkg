@@ -546,7 +546,7 @@ impl Makepkg {
                 }
             }
 
-            if options.reproducible {
+            if self.config().reproducible {
                 for file in walkdir::WalkDir::new(dest) {
                     let file = file.context(
                         Context::CreatePackage,

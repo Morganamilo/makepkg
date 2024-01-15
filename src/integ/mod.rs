@@ -26,20 +26,20 @@ mod vcs;
 
 impl Makepkg {
     pub fn check_integ(&self, options: &Options, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
-        if options.skip_pgp_check && options.skip_checksums {
+        if options.no_signatures && options.no_checksums {
             self.log(LogLevel::Warning, LogMessage::SkippingAllIntegrityChecks)?;
             return Ok(());
         }
 
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
 
-        if options.skip_checksums {
+        if options.no_checksums {
             self.log(
                 LogLevel::Warning,
                 LogMessage::SkippingChecksumIntegrityChecks,
             )?;
             self.check_signatures(pkgbuild, all)?
-        } else if options.skip_pgp_check {
+        } else if options.no_signatures {
             self.log(LogLevel::Warning, LogMessage::SkippingPGPIntegrityChecks)?;
             self.check_checksums(&dirs, pkgbuild, all)?;
         } else {

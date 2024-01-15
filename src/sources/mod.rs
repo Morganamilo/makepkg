@@ -46,19 +46,20 @@ impl Makepkg {
     }
 
     pub fn extract_sources(&self, options: &Options, pkgbuild: &Pkgbuild, all: bool) -> Result<()> {
-        self.event(Event::ExtractingSources)?;
-
         let dirs = self.pkgbuild_dirs(pkgbuild)?;
+        if !options.no_extract {
+            self.event(Event::ExtractingSources)?;
 
-        for source in &pkgbuild.source.values {
-            if !all && !source.enabled(&self.config.arch) {
-                continue;
-            }
+            for source in &pkgbuild.source.values {
+                if !all && !source.enabled(&self.config.arch) {
+                    continue;
+                }
 
-            for source in &source.values {
-                match source.vcs_kind() {
-                    Some(vcs) => self.extract_vcs(&dirs, pkgbuild, vcs, source)?,
-                    _ => self.extract_file(&dirs, pkgbuild, source)?,
+                for source in &source.values {
+                    match source.vcs_kind() {
+                        Some(vcs) => self.extract_vcs(&dirs, pkgbuild, vcs, source)?,
+                        _ => self.extract_file(&dirs, pkgbuild, source)?,
+                    }
                 }
             }
         }
@@ -66,7 +67,7 @@ impl Makepkg {
         if !options.no_prepare {
             self.run_function(options, pkgbuild, Function::Prepare)?
         }
-        if options.reproducible {
+        if self.config().reproducible {
             for file in walkdir::WalkDir::new(&dirs.srcdir) {
                 let file = file.context(
                     Context::ExtractSources,

@@ -296,7 +296,7 @@ pub struct Config {
     pub srcpkgdest: Option<PathBuf>,
 
     pub source_date_epoch: u64,
-    pub reproducable: bool,
+    pub reproducible: bool,
     pub pacman: String,
 
     pub buildtool: String,
@@ -491,7 +491,7 @@ impl Config {
             config.source_date_epoch = epoch
                 .parse()
                 .map_err(|_| LintKind::InvalidEpoch(epoch).config())?;
-            config.reproducable = true;
+            config.reproducible = true;
         }
 
         if let Ok(buildtool) = std::env::var("BUILDTOOL") {
