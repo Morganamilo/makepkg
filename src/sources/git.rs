@@ -144,7 +144,7 @@ impl Makepkg {
             }
         }
 
-        if gitref != "origin/head" || updating {
+        if gitref != "origin/HEAD" || updating {
             let mut command = Command::new("git");
             command
                 .arg("checkout")
