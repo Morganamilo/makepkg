@@ -63,7 +63,7 @@
 //! VAR GLOBAL ARRAY license "GPL3"
 //! VAR GLOBAL ARRAY optdepends "bat: colored pkgbuild printing" "devtools: build in chroot and downloading pkgbuilds"
 //! VAR GLOBAL STRING pkgrel "1"
-//! VAR GLOBAL STRING url "https://github.com/morganamilo/paru"
+//! VAR GLOBAL STRING url "<https://github.com/morganamilo/paru>"
 //! VAR GLOBAL ARRAY depends_x86_64 "gdb"
 //! VAR FUNCTION package STRING pkgdesc "does something"
 //! VAR FUNCTION package ARRAY depends

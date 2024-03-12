@@ -207,7 +207,7 @@ pub struct PkgbuildDirs {
     /// This will be [`startdir`](`PkgbuildDirs::startdir`)/`pkg`, or if [`builddir`](`PkgbuildDirs::builddir`) is set, [`builddir`](`PkgbuildDirs::builddir`)/[`pkgbase`](`Pkgbuild::pkgbase`)/`pkg`.
     pub pkgdir: PathBuf,
     /// The directory that source packages are built in. This will be
-    /// [`builddir`](`Pkgbuilds::builddir`)/srcpkg/[`pkgbase`](`Pkgbuild::pkgbase`).
+    /// [`builddir`](`PkgbuildDirs::builddir`)/srcpkg/[`pkgbase`](`Pkgbuild::pkgbase`).
     pub srcpkgdir: PathBuf,
     /// The directory sources are downloaded to.
     pub srcdest: PathBuf,
