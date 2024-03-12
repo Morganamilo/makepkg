@@ -851,7 +851,7 @@ mod test {
         callback::{Callbacks, CommandOutput, Event, LogLevel, LogMessage},
         CommandKind, Makepkg, Options,
     };
-    use ansi_term::Style;
+    use ansi_term::{Color, Style};
     use std::{
         fs::File,
         io::{self, stdout, Write},
